@@ -62,27 +62,34 @@ function setupPython() {
     fi
 
     # Check current python version
-    DEFAULT_PYTHON_VERSION="3.7.3"
+    DEFAULT_PYTHON_VERSION="3.9"
     PYTHON_VERSION_CHECK_STRING="Python $DEFAULT_PYTHON_VERSION"
     if [[ $(python --version 2>&1) =~ $PYTHON_VERSION_CHECK_STRING ]]
         then
-            print "$PYTHON_VERSION_CHECK_STRING is installed."
-            return 0
+            print "$PYTHON_VERSION_CHECK_STRING is installed and likely the global default."
         else
-            print "$PYTHON_VERSION_CHECK_STRING is missing. Continuing with python setup now."
-
-            print "What version of python do you want to install? Hit enter to install $DEFAULT_PYTHON_VERSION or specify a new version."; read inputPythonVersion
-            if [ -z $inputPythonVersion ]
-                then
-                    inputPythonVersion=$DEFAULT_PYTHON_VERSION
-            fi
-
-            pyenv install $inputPythonVersion
-
-            print "Pyenv installation is done. Setting version $inputPythonVersion as default."
-            pyenv global $inputPythonVersion
+            print "$PYTHON_VERSION_CHECK_STRING is not installed or is not the global default. Listing available versions around $PYTHON_VERSION_CHECK_STRING."
+            pyenv install -l | grep $DEFAULT_PYTHON_VERSION
     fi
 
+    # Install different version?
+    print "$PYTHON_VERSION_CHECK_STRING is missing. Continuing with python setup? [Y|n] "; read inputContinuePythonSetup;
+    if [[ $inputContinuePythonSetup =~ [Yy] ]]; then
+        print "What version of python do you want to install? Hit enter to install $DEFAULT_PYTHON_VERSION."; read inputPythonVersion
+        if [ -z $inputPythonVersion ]
+            then
+                inputPythonVersion=$DEFAULT_PYTHON_VERSION
+        fi
+
+        pyenv install $inputPythonVersion
+
+        print "Pyenv installation completed. Attempting to set version $inputPythonVersion as default."
+        pyenv global $inputPythonVersion
+    else
+        # do nothing
+    fi
+
+    print "\nConfirming 'python --version'"
     python --version
 }
 
@@ -93,6 +100,18 @@ function configureLocalProxies() {
     alias proxyon='export http_proxy=$HTTP_PROXY; export https_proxy=$HTTPS_PROXY; export HTTP_PROXY; export HTTPS_PROXY; export no_proxy=$NO_PROXY_LIST; export NO_PROXY=$NO_PROXY_LIST'
     alias proxyoff='unset http_proxy && unset https_proxy && unset HTTP_PROXY && unset HTTPS_PROXY && unset no_proxy && unset NO_PROXY_LIST'
     print "Local proxy config is done."
+}
+
+function installCLIs() {
+    print "Install OCI CLI? [Y/n]"; read inputInstallOCICLI;
+    if [[ $inputInstallOCICLI =~ [Yy] ]]; then
+        brew update && brew install oci-cli
+    fi
+
+    print "Install AWS CLI? [Y/n]"; read inputInstallAWSCLI;
+    if [[ $inputInstallAWSCLI =~ [Yy] ]]; then
+        brew update && brew install aws-cli
+    fi
 }
 
 # Local OS
