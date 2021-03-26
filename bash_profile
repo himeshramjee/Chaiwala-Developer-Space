@@ -1,20 +1,106 @@
-#!/bin/bash
+print "========================================";
+print "Checking local environment setup...";
+print "Current Shell is $(echo $SHELL)"
+printf '\e[8;40;230t';
 
-# PATH updates
-export PATH="/usr/local/bin:/usr/bin/git:/usr/bin:/usr/local/sbin:$PATH"
-export PATH=/Users/himeshramjee/Library/Python/3.7/bin/:$PATH
+NOW_DATE=$(date +"%F")
 
-AWS_ACCOUNT_NUMBER=
+function resetTerminalConfig() {
+    # FIXME: Cleanup with error handling
+
+    TEMP_FILENAME="bash_profile.download"
+    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/bash_profile -o $TEMP_FILENAME
+
+    # Backup current file
+    if [ -f "~/.bash_profile" ] 
+        then
+            mv ~/.bash_profile ~/.bash_profile-$NOW_DATE.bak
+            print "bash_profile backed up. Listing directory to surface any cleanup."
+            ls -hal ~/
+    fi
+    
+    # Add updated file
+    cp ./$TEMP_FILENAME ~/.bash_profile
+    print "New bash_profile config added."
+
+    print "Attempting to apply it..."
+    source ~/.bash_profile
+    print "Attempt done. Check for any errors."
+}
+
+function getHomebrewInstaller() {
+    # FIXME: Cleanup with error handling
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+    print "Homebrew download is done (check for errors before executing the install.sh file)."
+}
+
+function setupPython() {
+    # Dependency on pyenv being installed - see https://opensource.com/article/19/5/python-3-default-mac
+    # Makes sure it's in zshrc and bash_profile config files
+    # echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.zshrc
+
+    # Ensure pyenv is setup and initialized
+    if command -v pyenv 1>/dev/null 2>&1;
+        then
+            eval "$(pyenv init -)"
+        else 
+            # -p isn't compatible with zsh
+            # read -p "Pyenv not installed. Brew it now? [Y/n]" inputInstallPyenv
+            print "Pyenv not installed. Brew it now? [Y/n]"; read inputInstallPyenv
+
+            if [[ "$inputInstallPyenv" =~ [yY] ]]; then
+                if command -v brew 1>/dev/null 2>&1; then
+                    brew install pyenv
+                fi
+            else 
+                return -1
+            fi
+
+            eval "$(pyenv init -)"
+    fi
+
+    # Check current python version
+    DEFAULT_PYTHON_VERSION="3.7.3"
+    PYTHON_VERSION_CHECK_STRING="Python $DEFAULT_PYTHON_VERSION"
+    if [[ $(python --version 2>&1) =~ $PYTHON_VERSION_CHECK_STRING ]]
+        then
+            print "$PYTHON_VERSION_CHECK_STRING is installed."
+            return 0
+        else
+            print "$PYTHON_VERSION_CHECK_STRING is missing. Continuing with python setup now."
+
+            print "What version of python do you want to install? Hit enter to install $DEFAULT_PYTHON_VERSION or specify a new version."; read inputPythonVersion
+            if [ -z $inputPythonVersion ]
+                then
+                    inputPythonVersion=$DEFAULT_PYTHON_VERSION
+            fi
+
+            pyenv install $inputPythonVersion
+
+            print "Pyenv installation is done. Setting version $inputPythonVersion as default."
+            pyenv global $inputPythonVersion
+    fi
+
+    python --version
+}
+
+function configureLocalProxies() {
+    HTTP_PROXY=
+    HTTPS_PROXY=$HTTP_PROXY
+    NO_PROXY_LIST=localhost,127.0.0.1
+    alias proxyon='export http_proxy=$HTTP_PROXY; export https_proxy=$HTTPS_PROXY; export HTTP_PROXY; export HTTPS_PROXY; export no_proxy=$NO_PROXY_LIST; export NO_PROXY=$NO_PROXY_LIST'
+    alias proxyoff='unset http_proxy && unset https_proxy && unset HTTP_PROXY && unset HTTPS_PROXY && unset no_proxy && unset NO_PROXY_LIST'
+    print "Local proxy config is done."
+}
 
 # Local OS
 alias ll='ls -hal'
 
-# Environment Variables
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-11.jdk/Contents/Home
+# Local Environment setup
+configureLocalProxies
 
-# Python
-alias py3='/Users/himeshramjee/.pyenv/shims/python' # Temporary. Fix via https://opensource.com/article/19/5/python-3-default-mac
-alias pip='/Users/himeshramjee/.pyenv/shims/pip' # Temporary. Fix via https://opensource.com/article/19/5/python-3-default-mac
+# Python initialization
+setupPython
 
 # Docker
 alias dockc='docker-compose'
@@ -31,7 +117,4 @@ alias kubectl-ll="kubectl get pods -l app!=himesh -o=jsonpath=\"{range .items[*]
 alias kubectl-ga="clear && echo 'Deployments...\n' && kubectl get deployments && echo '\nServices...\n' && kubectl get services && echo '\nPods...\n' && kubectl get pods && echo '\nPod names...\n' && kubectl-ll"
 alias kubectl-rr="kubectl rollout restart deployment $1"
 
-# Remote server management
-alias gonxs='ssh -i ~/.ssh/LightsailDefaultKey-eu-west-1.pem ubuntu@'
-
-print "~/.bash_profile processed."
+print "========================================\n\n";
