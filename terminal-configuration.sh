@@ -21,7 +21,7 @@ function resetTerminalConfig() {
     fi
     
     # Fetch latest script
-    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/bash_profile > $LOCAL_SCRIPT_LOCATION
+    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/terminal-configuration.sh > $LOCAL_SCRIPT_LOCATION
     print "\nLocal config updated."
 
     print "Attempting to apply it..."
