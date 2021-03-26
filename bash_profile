@@ -21,6 +21,7 @@ function resetTerminalConfig() {
     
     # Add updated file
     cp ./$TEMP_FILENAME ~/.bash_profile
+    rm -f $TEMP_FILENAME
     print "\nNew bash_profile config added."
 
     print "Attempting to apply it..."
