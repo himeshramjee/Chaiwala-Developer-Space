@@ -62,10 +62,9 @@ function setupPython() {
     fi
 
     # Check current python version
-    DEFAULT_PYTHON_VERSION="3.9"
+    DEFAULT_PYTHON_VERSION="3.9.2"
     PYTHON_VERSION_CHECK_STRING="Python $DEFAULT_PYTHON_VERSION"
-    if [[ $(python --version 2>&1) =~ $PYTHON_VERSION_CHECK_STRING ]]
-        then
+    if [[ $(python --version 2>&1) =~ $PYTHON_VERSION_CHECK_STRING ]]; then
             print "$PYTHON_VERSION_CHECK_STRING is installed and likely the global default."
         else
             print "$PYTHON_VERSION_CHECK_STRING is not installed or is not the global default. Listing available versions around $PYTHON_VERSION_CHECK_STRING."
@@ -73,7 +72,7 @@ function setupPython() {
     fi
 
     # Install different version?
-    print "$PYTHON_VERSION_CHECK_STRING is missing. Continuing with python setup? [Y|n] "; read inputContinuePythonSetup;
+    print "\nContinuing with python setup? [Y|n] "; read inputContinuePythonSetup;
     if [[ $inputContinuePythonSetup =~ [Yy] ]]; then
         print "What version of python do you want to install? Hit enter to install $DEFAULT_PYTHON_VERSION."; read inputPythonVersion
         if [ -z $inputPythonVersion ]
@@ -83,7 +82,7 @@ function setupPython() {
 
         pyenv install $inputPythonVersion
 
-        print "Pyenv installation completed. Attempting to set version $inputPythonVersion as default."
+        print "Pyenv installation completed. Attempting to set version $inputPythonVersion as global default."
         pyenv global $inputPythonVersion
     else
         # do nothing
