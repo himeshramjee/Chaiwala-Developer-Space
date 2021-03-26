@@ -1,4 +1,4 @@
-print "========================================";
+print "\n========================================";
 print "Checking local environment setup...";
 print "Current Shell is $(echo $SHELL)"
 printf '\e[8;40;230t';
@@ -21,11 +21,11 @@ function resetTerminalConfig() {
     
     # Add updated file
     cp ./$TEMP_FILENAME ~/.bash_profile
-    print "New bash_profile config added."
+    print "\nNew bash_profile config added."
 
     print "Attempting to apply it..."
     source ~/.bash_profile
-    print "Attempt done. Check for any errors."
+    print "Terminal reset done. Check for any errors."
 }
 
 function getHomebrewInstaller() {
@@ -85,9 +85,9 @@ function setupPython() {
 }
 
 function configureLocalProxies() {
-    HTTP_PROXY=
+    HTTP_PROXY=http://www-proxy-lon.uk.oracle.com:80
     HTTPS_PROXY=$HTTP_PROXY
-    NO_PROXY_LIST=localhost,127.0.0.1
+    NO_PROXY_LIST=localhost,127.0.0.1,oraclecorp.com,ucfc2z3c.usdv1.oraclecloud.com,10.241.160.84,oc-test.com
     alias proxyon='export http_proxy=$HTTP_PROXY; export https_proxy=$HTTPS_PROXY; export HTTP_PROXY; export HTTPS_PROXY; export no_proxy=$NO_PROXY_LIST; export NO_PROXY=$NO_PROXY_LIST'
     alias proxyoff='unset http_proxy && unset https_proxy && unset HTTP_PROXY && unset HTTPS_PROXY && unset no_proxy && unset NO_PROXY_LIST'
     print "Local proxy config is done."
@@ -117,4 +117,4 @@ alias kubectl-ll="kubectl get pods -l app!=himesh -o=jsonpath=\"{range .items[*]
 alias kubectl-ga="clear && echo 'Deployments...\n' && kubectl get deployments && echo '\nServices...\n' && kubectl get services && echo '\nPods...\n' && kubectl get pods && echo '\nPod names...\n' && kubectl-ll"
 alias kubectl-rr="kubectl rollout restart deployment $1"
 
-print "========================================\n\n";
+print "========================================\n";
