@@ -8,24 +8,24 @@ NOW_DATE=$(date +"%F")
 function resetTerminalConfig() {
     # FIXME: Cleanup with error handling
 
-    TEMP_FILENAME="bash_profile.download"
-    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/bash_profile -o $TEMP_FILENAME
+    LOCAL_SCRIPT_LOCATION="~/.zshrc"
 
     # Backup current file
-    if [ -f "~/.bash_profile" ] 
+    if [ -f "$LOCAL_SCRIPT_LOCATION" ] 
         then
-            mv ~/.bash_profile ~/.bash_profile-$NOW_DATE.bak
-            print "bash_profile backed up. Listing directory to surface any cleanup."
+            mv $LOCAL_SCRIPT_LOCATION $LOCAL_SCRIPT_LOCATION-$NOW_DATE.bak
+            print "Local script is backed up. Listing directory to surface any cleanup."
             ls -hal ~/
+        else
+            print "$LOCAL_SCRIPT_LOCATION doesn't exist. No need to backup."
     fi
     
-    # Add updated file
-    cp ./$TEMP_FILENAME ~/.bash_profile
-    rm -f $TEMP_FILENAME
-    print "\nNew bash_profile config added."
+    # Fetch latest script
+    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/bash_profile > $LOCAL_SCRIPT_LOCATION
+    print "\nLocal config updated."
 
     print "Attempting to apply it..."
-    source ~/.bash_profile
+    source $LOCAL_SCRIPT_LOCATION
     print "Terminal reset done. Check for any errors."
 }
 
