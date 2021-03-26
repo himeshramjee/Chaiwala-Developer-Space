@@ -8,14 +8,15 @@ NOW_DATE=$(date +"%F")
 function resetTerminalConfig() {
     # FIXME: Cleanup with error handling
 
-    LOCAL_SCRIPT_LOCATION="~/.zshrc"
+    HOME_DIRECTORY=$(echo ~)
+    LOCAL_SCRIPT_LOCATION="$HOME_DIRECTORY/.zshrc"
 
     # Backup current file
-    if [ -f "$LOCAL_SCRIPT_LOCATION" ] 
-        then
+    if [[ -f "$LOCAL_SCRIPT_LOCATION" ]]; then
             mv $LOCAL_SCRIPT_LOCATION $LOCAL_SCRIPT_LOCATION-$NOW_DATE.bak
-            print "Local script is backed up. Listing directory to surface any cleanup."
-            ls -hal ~/
+            print "\nLocal script is backed up. Listing directory to surface any cleanup."
+            ls -hal ~/.*.bak
+            print "\n"
         else
             print "$LOCAL_SCRIPT_LOCATION doesn't exist. No need to backup."
     fi
