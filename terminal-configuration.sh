@@ -1,9 +1,30 @@
-print "\n========================================";
-print "Checking local environment setup...";
-print "Current Shell is $(echo $SHELL)"
-printf '\e[8;40;230t';
 
+# Variables
+# =================================================================================================
 NOW_DATE=$(date +"%F")
+
+# Helper Functions
+# =================================================================================================
+
+function renewDomainCerts() {
+  local renewCerts='n'
+
+  printf 'Command to renew certs: sudo certbot -d ramjee.co.za -d *.ramjee.co.za --manual --preferred-challenges dns certonly\n'
+  read -p "Upgrade SSL certs? [y|n] " renewCerts
+
+  if [[ $renewCerts == 'y' || $renewCerts == 'Y' ]]; then
+    printf '\nStart SLL cert renewall...\n'
+    printf '\tsudo certbot -d ramjee.co.za -d *.ramjee.co.za --manual --preferred-challenges dns certonly\n'
+    sudo certbot -d ramjee.co.za -d *.ramjee.co.za --manual --preferred-challenges dns certonly
+
+    printf 'Restarting nginx service...(no output means success)\n'
+    sudo service nginx restart
+
+    printf 'Renewal function is done.\n'
+  else 
+    printf 'Skipping SSL cert renewal.\n'
+  fi
+}
 
 function resetTerminalConfig() {
     # FIXME: Cleanup with error handling
@@ -113,14 +134,11 @@ function installCLIs() {
     fi
 }
 
+# Aliases
+# =================================================================================================
+
 # Local OS
 alias ll='ls -hal'
-
-# Local Environment setup
-configureLocalProxies
-
-# Python initialization
-setupPython
 
 # Docker
 alias dockc='docker-compose'
@@ -136,5 +154,18 @@ alias resetnetworks='docker network prune'
 alias kubectl-ll="kubectl get pods -l app!=himesh -o=jsonpath=\"{range .items[*]}{.metadata.name}{'\n'}{end}\""
 alias kubectl-ga="clear && echo 'Deployments...\n' && kubectl get deployments && echo '\nServices...\n' && kubectl get services && echo '\nPods...\n' && kubectl get pods && echo '\nPod names...\n' && kubectl-ll"
 alias kubectl-rr="kubectl rollout restart deployment $1"
+
+# Main
+# =================================================================================================
+print "\n========================================";
+print "Checking local environment setup...";
+print "Current Shell is $(echo $SHELL)"
+printf '\e[8;40;230t';
+
+# Local Environment setup
+configureLocalProxies
+
+# Python initialization
+setupPython
 
 print "========================================\n";
