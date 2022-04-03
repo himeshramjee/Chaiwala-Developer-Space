@@ -1,5 +1,32 @@
 #!/bin/bash
 
+# Helper Functions
+# =================================================================================================
+
+function renewDomainCerts() {
+  local renewCerts='n'
+
+  printf 'Command to renew certs: sudo certbot -d ramjee.co.za -d *.ramjee.co.za --manual --preferred-challenges dns certonly\n'
+  read -p "Upgrade SSL certs? [y|n] " renewCerts
+
+  if [[ $renewCerts == 'y' || $renewCerts == 'Y' ]]; then
+    printf '\nStart SLL cert renewall...\n'
+    printf '\tsudo certbot -d ramjee.co.za -d *.ramjee.co.za --manual --preferred-challenges dns certonly\n'
+    sudo certbot -d ramjee.co.za -d *.ramjee.co.za --manual --preferred-challenges dns certonly
+
+    printf 'Restarting nginx service...(no output means success)\n'
+    sudo service nginx restart
+
+    printf 'Renewal function is done.\n'
+  else 
+    printf 'Skipping SSL cert renewal.\n'
+  fi
+}
+
+renewDomainCerts
+
+# Variables & Aliases
+# =================================================================================================
 # PATH updates
 export PATH="/usr/local/bin:/usr/bin/git:/usr/bin:/usr/local/sbin:$PATH"
 export PATH=/Users/himeshramjee/Library/Python/3.7/bin/:$PATH
