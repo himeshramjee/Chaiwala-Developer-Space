@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ZSH_DISABLE_COMPFIX="true"
 
 print "\n========================================";
@@ -15,12 +17,12 @@ function resetTerminalConfig() {
 
     # Backup current file
     if [[ -f "$LOCAL_SCRIPT_LOCATION" ]]; then
-            mv $LOCAL_SCRIPT_LOCATION $LOCAL_SCRIPT_LOCATION-$NOW_DATE.bak
-            print "\nLocal script is backed up. Listing directory to surface any cleanup."
-            ls -hal ~/.*.bak
-            print "\n"
-        else
-            print "$LOCAL_SCRIPT_LOCATION doesn't exist. No need to backup."
+        mv $LOCAL_SCRIPT_LOCATION $LOCAL_SCRIPT_LOCATION-$NOW_DATE.bak
+        print "\nLocal script is backed up. Listing directory to surface any cleanup."
+        ls -hal ~/.*.bak
+        print "\n"
+    else
+        print "$LOCAL_SCRIPT_LOCATION doesn't exist. No need to backup."
     fi
     
     # Fetch latest script
@@ -66,6 +68,47 @@ function renewDomainCerts() {
     fi
 }
 
+function setJavaHome() {
+    # https://mkyong.com/java/how-to-install-java-on-mac-osx/
+    # https://medium.com/notes-for-geeks/java-home-and-java-home-on-macos-f246cab643bd
+    version=''
+    if [[ ! -z "$1" ]]; then
+        version="$1"
+
+        print "\nJAVA_HOME is currently set to: $JAVA_HOME."
+        
+        print "\nChecking Java symlinks..."
+        if [[ ! -e "/Library/Java/JavaVirtualMachines/openjdk-$version.jdk" ]]; then
+            if [[ -e "/usr/local/opt/openjdk@$version/libexec/openjdk.jdk" ]]; then
+                unset JAVA_HOME;
+                sudo ln -sfn /usr/local/opt/openjdk@$version/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-$version.jdk
+                print "Symlinked to openjdk $version. Will run 'java -version' at end of script to confirm..."
+
+                print "Setting JAVA_HOME via '/usr/libexec/java_home -v $version'"
+                export JAVA_HOME=$(/usr/libexec/java_home -v "$version");
+            else
+                print "Java version not found: $version."
+                print "Java not configured properly - please run 'setJavaHome' with an explicit version e.g. 'setJavaHome 11'."
+                
+                print "\nRunning 'ls -hal /usr/local/opt/openjdk*'..."
+                ls -hal /usr/local/opt/openjdk*
+                print "\nAlso listing all known JVMs via java_home tool..."
+                /usr/libexec/java_home -V
+            fi
+        else
+            print "Java $version already linked at: /Library/Java/JavaVirtualMachines/openjdk$version.jdk."
+            print "Setting JAVA_HOME via '/usr/libexec/java_home -v $version'"
+            export JAVA_HOME=$(/usr/libexec/java_home -v "$version");
+        fi
+
+        print "\nRunnnig final version check with 'java -version && echo JAVA_HOME'"
+        java -version && print "\nJava home: $JAVA_HOME"
+        print "\nDone."
+    else
+        print "Java version not specified. Please run 'setJavaHome' with an explicit version e.g. 'setJavaHome 11|18'."
+    fi
+}
+
 function setupPython() {
     # Dependency on pyenv being installed - see https://opensource.com/article/19/5/python-3-default-mac
     # Makes sure it's in zshrc and bash_profile config files
@@ -107,6 +150,7 @@ function setupPython() {
 
     print "\nConfirming 'python --version'"
     python --version
+    print "Done.\n"
 }
 
 function installPython() {
@@ -159,7 +203,8 @@ function launchChromeWithInsecureContent() {
 
 # Yubikey Hepers
 # ===================================================================================
-OPENSC_LIB_VERSION="0.22.0"
+export OPENSC_LIB_VERSION="0.22.0"
+export OPENSC_PATH='/usr/local/lib/opensc-pkcs11.so'
 
 function reinitSSHAndOpenSC() {
     print "Geez, you're going with the last resort hey. Good luck!"
@@ -172,107 +217,81 @@ function reinitSSHAndOpenSC() {
     print "\nUninstalling opensc"
     brew uninstall opensc
 
-    print "\n\t NOTE: The OpenSSH PKCS11 smartcard integration will not work from High Sierra onwards. If you need this functionality, unlink this formula, then install the OpenSC cask."
-    print "\nInstalling openssh...Continue? [y|n]"; read inputContinueInstall;
+    print "\nInstalling openssh..."
+    print "\t NOTE: The OpenSSH PKCS11 smartcard integration will not work from High Sierra onwards. If you need this functionality, unlink this formula, then install the OpenSC cask."
+    print "Continue? [y|n]"; read inputContinueInstall;
     if [[ $inputContinueInstall =~ [Yy] ]] then
         brew install openssh
     fi
 
-    read -p "\nInstalling opensc...Continue? [y|n]" inputContinueInstall
+    print "\nInstalling opensc...Continue? [y|n]"; read inputContinueInstall;
     if [[ $inputContinueInstall =~ [Yy] ]] then
         brew install opensc
     fi
 
-    print "\nRemoving /usr/local/lib/opensc-pkcs11.so..."
-    cd /usr/local/lib/
-    rm -rf opensc-pkcs11.so
+    print "\nRemoving $OPENSC_PATH..."
+    rm -rf $OPENSC_PATH
 
-    OPENSC_LIB_VERSION="0.22.0"
-    if [[ -f "../Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so" ]]; then
-        print "\n\t Copying from Cellar..."
-        cp ../Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so .
+    if [[ -f "/usr/local/Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so" ]]; then
+        print "\nCopying opensc-pkcs11.so from Cellar..."
+        cp /usr/local/Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so /usr/local/lib/
+        print "Listing $OPENSC_PATH..."
+        ll $OPENSC_PATH
     else
-        print "\n\t Couldn't copy file to ${PWD}. ../Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so not found."
-        ll ../Cellar/opensc/
+        print "\nCouldn't copy file. /usr/local/Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so not found."
+        print "Listing /usr/local/Cellar/opensc/"
+        ll /usr/local/Cellar/opensc/
+    fi
+
+    print "\nIf no errors are shown above, you also run reloadOpenSC to get the SC key loaded to your ssh-agent."
+    print "Execute reloadOpenSC now? [y|n]"; read inputContinueReload;
+    if [[ $inputContinueReload =~ [Yy] ]]; then
+        loadYubiKeys
     fi
 
     print "\nDone."
 }
 
-function reloadOpenSC() {
-    print 'Listing current SSH Identities registered with SSH Agent'
+function loadYubiKeys() {
+    print "Running ssh-add -l..."
     ssh-add -l
-    print '\tDone.'
 
-    OPENSC_LIB_INSTALLED_PATH="/usr/local/Cellar/opensc/$OPENSC_LIB_VERSION/lib/opensc-pkcs11.so"
-    OPENSC_LIB_PATH='/usr/local/lib/opensc-pkcs11-local.so'
-    # ln -s $OPENSC_LIB_INSTALLED_PATH $OPENSC_LIB_PATH
-    
-    print 'Removing previous smart card/key...'
-    ssh-add -e $OPENSC_LIB_PATH >> /dev/null
-    if [ $? -gt 0 ]; then
-        print "\tFailed to remove previous card"
+    print "\nRemoving $OPENSC_PATH from ssh agent..."
+    ssh-add -e $OPENSC_PATH
+
+    if [[ $1 == "force" ]]; then
+        print "\nKilling ssh-agent and pkcs11 smart card processes..."
+        pkill -9 ssh-agent
+        pkill -9 ssh-pkcs11-helper
+        # export SSH_AUTH_SOCK=~/ssh-auth-sock
+    else
+        # print "Running source /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/*.env..."
+        # source /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/*.env
+
+        # print "Running cd /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin..."
+        # cd /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin
+
+        # print "Running pic-tools so you can cache ssh keys..."
+        # /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin/pic-yubi
     fi
-    print "\tDone."
+
+
+    print "\nCheck ssh agent status"
+    eval $(ssh-agent)
     
-    print "Killing ssh-agent process..."
-    pkill -9 ssh-agent
-    print "\tDone."
+    print "\nAdding $OPENSC_PATH back to ssh agent...this will ask for your yubi PIN"
+    ssh-add -s $OPENSC_PATH
 
-    print "Killing ssh-pkcs11-helper..."
-    pkill -9 ssh-pkcs11-helper
-    print "\tDone."
-
-    print "Starting ssh agent..."
-    export SSH_AUTH_SOCK='~/ssh-auth-sock'
-    ssh-agent -s
-    print "\tDone."
-    
-    print "Adding to agent..."
-    ssh-add -s $OPENSC_LIB_PATH
-    print "\tDone."
-
-    print "Done."
+    print "\nConfirming yubi-keys added by Running ssh-add -l..."
+    ssh-add -l
 }
 
 function showYubiKeyCommands() {
-    print "Yubi serial \n\twas: 15400820\n\tand now is: 17141997"
+    print "Yubi serial \n\twas: xxx\n\tand now is: xxx"
     print "brew install yubico-piv-tool"
     print "Check how many retries attempts you have to guess PIN: \n\tyubico-piv-tool -a status | grep 'PIN'"
     print "Verify PIN (this will use up retry limit - seems I got about ~5 free attempts before the default 15 started counting down): \n\tyubico-piv-tool -a verify -P <PIN>"
     print "Show all slots: \n\tyubico-piv-tool -a status"
-
-    print "\nAlso be sure to check out pic-tools repo - last known location"
-    print "\t/Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin"
-}
-
-function pickyThisShellIs() {
-    if [[ $1 == "force" ]]; then
-        print "Killing ssh-agent and pkcs11 smart card processes..."
-        pkill -9 ssh-agent
-        pkill -9 ssh-pkcs11-helper
-
-        export OPENSC='/usr/local/lib/opensc-pkcs11.so'
-        # export SSH_AUTH_SOCK=~/ssh-auth-sock
-        
-        print "Adding $OPENSC to agent..."
-        ssh-add -s $OPENSC
-    else
-        print "Running source /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/*.env..."
-        source /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/*.env
-
-        print "Running cd /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin..."
-        cd /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin
-
-        print "Running pic-tools so you can cache ssh keys..."
-        pic-yubi
-    fi
-
-    print "Check ssh agent status"
-    eval $(ssh-agent)
-
-    print "Confirming yubi-keys added by Running ssh-add -l..."
-    ssh-add -l
 }
 
 function startLocalKiev() {
@@ -293,15 +312,7 @@ alias ll='ls -hal'
 setupPython
 
 # Setup Java
-# export JAVA_HOME='/Library/Java/JavaVirtualMachines/jdk-11.0.13.jdk/Contents/Home'
-export JAVA_HOME=`/usr/libexec/java_home -v 11`
-# export JAVA_HOME=`/usr/libexec/java_home -v 1.8.0_292`
-# export JAVA_HOME='/usr/local/Cellar/openjdk/17'
-# export JAVA_HOME='/usr/local/Cellar/openjdk/17/libexec/openjdk.jdk/Contents/Home'
-# export PATH=$PATH:$JAVA_HOME
-# export PATH="/usr/local/opt/openjdk@8/bin:$PATH"
-print "\nConfirming 'java -version'"
-java -version
+setJavaHome 18
 
 # Docker
 alias dockc='docker-compose'
@@ -318,13 +329,24 @@ alias kubectl-ll="kubectl get pods -l app!=himesh -o=jsonpath=\"{range .items[*]
 alias kubectl-ga="clear && echo 'Deployments...\n' && kubectl get deployments && echo '\nServices...\n' && kubectl get services && echo '\nPods...\n' && kubectl get pods && echo '\nPod names...\n' && kubectl-ll"
 alias kubectl-rr="kubectl rollout restart deployment $1"
 
-print '\n$PATH: '$PATH
+# Maven
+alias mvn-skoon="mvn clean install -DskipTests"
+alias mvn-jacoco="mvn org.jacoco:jacoco-maven-plugin:0.8.5:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.5:report"
 
-# autoload -U +X bashcompinit && bashcompinit
-# complete -o nospace -C /usr/local/bin/terraform terraform
+print '\n$PATH: '$PATH
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 print "========================================\n";
+
+print "Additional scripts"
+print "========================================\n";
+
+if [[ -f "local-only.sh" ]]; then
+    print "Sourcing local-only.sh..."
+    source local-only.sh
+else
+    print "No local-only scripts to load."
+fi
