@@ -300,6 +300,48 @@ function startLocalKiev() {
     podman run --rm -p 1521:1521 --shm-size 1g iod-example-pdb
 }
 
+function setDWLogLevel() {
+    # print "[Older version 1.3.8] curl -k -X POST -d "" 'https://localhost:[AdminPort]/tasks/log-level?logger=com.payit.kafka.HelloWorld&level=DEBUG'"
+    
+    local newLogLevel='INFO'
+    local targetPackage='ROOT'
+    local applicationPort='19001'
+    
+    # Check Inputs
+    # ---------------------------------------------------------------------
+    if [[ ! -z "$1" ]]; then
+        newLogLevel=$1
+        print "New Log level set to $newLogLevel."
+    else
+        print "New Log level not specified as input. Defaulting to $newLogLevel."
+    fi
+
+    if [[ ! -z "$2" ]]; then
+        targetPackage=$2
+        print "Target package set to $targetPackage."
+    else
+        print "Target package not specified as input. Defaulting to $targetPackage."
+    fi
+
+    if [[ ! -z "$3" ]]; then
+        applicationPort=$3
+        print "Application port set to $applicationPort."
+    else
+        print "Application port not specified as input. Defaulting to $applicationPort."
+    fi
+
+    # Update log level
+    # ---------------------------------------------------------------------
+    print "\nSetting new log level for $targetPackage to $newLogLevel..."
+    print "Command: curl -X POST -d 'logger=$targetPackage&level=$newLogLevel' https://localhost:$applicationPort/tasks/log-level"
+    curl -X POST -d "logger=$targetPackage&level=$newLogLevel" https://localhost:$applicationPort/tasks/log-level
+    
+    # Check Application Health
+    # ---------------------------------------------------------------------
+    print "Pinging /healthcheck..."
+    curl http://localhost:$applicationPort/healthcheck
+}
+
 # Aliases
 # =================================================================================================
 
