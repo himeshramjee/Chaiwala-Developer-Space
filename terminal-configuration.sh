@@ -42,10 +42,17 @@ function updateZshConfig() {
     print "Local script is updated.\n"
 }
 
-function getHomebrewInstaller() {
-    # FIXME: Cleanup with error handling
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-    print "Homebrew download is done (check for errors before executing the install.sh file)."
+function getHomebrewInstallers() {
+    if [[ -z "$1" ]]; then
+        print "Usage: getHomebrewInstallers [install|uninstall]."
+        return
+    fi
+
+    if [[ "$1" =~ "install" ]]; then
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+    elif [[ "$1" =~ "uninstall" ]]; then
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/uninstall.sh)"
+    fi
 }
 
 function renewDomainCerts() {
@@ -71,42 +78,24 @@ function renewDomainCerts() {
 function setJavaHome() {
     # https://mkyong.com/java/how-to-install-java-on-mac-osx/
     # https://medium.com/notes-for-geeks/java-home-and-java-home-on-macos-f246cab643bd
-    version=''
-    if [[ ! -z "$1" ]]; then
-        version="$1"
+    print "\nJAVA_HOME is currently set to: $JAVA_HOME.\n"
 
-        print "\nJAVA_HOME is currently set to: $JAVA_HOME."
-        
-        print "\nChecking Java symlinks..."
-        if [[ ! -e "/Library/Java/JavaVirtualMachines/openjdk-$version.jdk" ]]; then
-            if [[ -e "/usr/local/opt/openjdk@$version/libexec/openjdk.jdk" ]]; then
-                unset JAVA_HOME;
-                sudo ln -sfn /usr/local/opt/openjdk@$version/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-$version.jdk
-                print "Symlinked to openjdk $version. Will run 'java -version' at end of script to confirm..."
+    if [[ -z "$1" ]]; then
+        print "Usage: setJavaHome [1.8|11|18]"
+        print "NB! Version are dependent on what's installed on local system!"
+        print "If the final version check isn't as you expect then don't use this script. Try manually setting JAVA_HOME to whichever version you need."
 
-                print "Setting JAVA_HOME via '/usr/libexec/java_home -v $version'"
-                export JAVA_HOME=$(/usr/libexec/java_home -v "$version");
-            else
-                print "Java version not found: $version."
-                print "Java not configured properly - please run 'setJavaHome' with an explicit version e.g. 'setJavaHome 11'."
-                
-                print "\nRunning 'ls -hal /usr/local/opt/openjdk*'..."
-                ls -hal /usr/local/opt/openjdk*
-                print "\nAlso listing all known JVMs via java_home tool..."
-                /usr/libexec/java_home -V
-            fi
-        else
-            print "Java $version already linked at: /Library/Java/JavaVirtualMachines/openjdk$version.jdk."
-            print "Setting JAVA_HOME via '/usr/libexec/java_home -v $version'"
-            export JAVA_HOME=$(/usr/libexec/java_home -v "$version");
-        fi
-
-        print "\nRunnnig final version check with 'java -version && echo JAVA_HOME'"
-        java -version && print "\nJava home: $JAVA_HOME"
-        print "\nDone."
+        print "\nListing available JVMs that can be used to set JAVA_HOME environment variable...\n"
+        /usr/libexec/java_home -V
     else
-        print "Java version not specified. Please run 'setJavaHome' with an explicit version e.g. 'setJavaHome 11|18'."
+        print "Exporting JAVA_HOME via '/usr/libexec/java_home -v $1'"
+        export JAVA_HOME=$(/usr/libexec/java_home -v $1);
     fi
+
+    print "\nConfirming 'java -version && print JAVA_HOME'\n"
+    java -version
+    print "\nJAVA_HOME: $JAVA_HOME"
+    print "\nDone."
 }
 
 function setupPython() {
@@ -246,13 +235,13 @@ function reinitSSHAndOpenSC() {
     print "\nIf no errors are shown above, you also run reloadOpenSC to get the SC key loaded to your ssh-agent."
     print "Execute reloadOpenSC now? [y|n]"; read inputContinueReload;
     if [[ $inputContinueReload =~ [Yy] ]]; then
-        loadYubiKeys
+        loadSSHKeys
     fi
 
     print "\nDone."
 }
 
-function loadYubiKeys() {
+function loadSSHKeys() {
     print "Running ssh-add -l..."
     ssh-add -l
 
@@ -264,17 +253,7 @@ function loadYubiKeys() {
         pkill -9 ssh-agent
         pkill -9 ssh-pkcs11-helper
         # export SSH_AUTH_SOCK=~/ssh-auth-sock
-    else
-        # print "Running source /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/*.env..."
-        # source /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/*.env
-
-        # print "Running cd /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin..."
-        # cd /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin
-
-        # print "Running pic-tools so you can cache ssh keys..."
-        # /Users/himeshramjee/workspaces/dev-tools/pic-tools/scripts/bin/pic-yubi
     fi
-
 
     print "\nCheck ssh agent status"
     eval $(ssh-agent)
@@ -282,22 +261,51 @@ function loadYubiKeys() {
     print "\nAdding $OPENSC_PATH back to ssh agent...this will ask for your yubi PIN"
     ssh-add -s $OPENSC_PATH
 
-    print "\nConfirming yubi-keys added by Running ssh-add -l..."
+    print "\nAdding himesh.ramjee@oracle.com keys..."
+    ssh-add ~/.ssh/himesh.ramjee@oracle.com
+    
+    print "\nAdding himesh.ramjee@gmail.com keys..."
+    ssh-add ~/.ssh/himesh.ramjee@gmail.com
+
+    print "\nConfirm all keys added; running ssh-add -l..."
     ssh-add -l
 }
 
 function showYubiKeyCommands() {
-    print "Yubi serial \n\twas: xxx\n\tand now is: xxx"
+    print "Yubi serial \n\twas: 15400820\n\tand now is: 17141997"
     print "brew install yubico-piv-tool"
     print "Check how many retries attempts you have to guess PIN: \n\tyubico-piv-tool -a status | grep 'PIN'"
     print "Verify PIN (this will use up retry limit - seems I got about ~5 free attempts before the default 15 started counting down): \n\tyubico-piv-tool -a verify -P <PIN>"
     print "Show all slots: \n\tyubico-piv-tool -a status"
 }
 
-function startLocalKiev() {
-    # podman machine init --cpus 2 --disk-size 32 --memory 4096
-    # podman machine start
-    podman run --rm -p 1521:1521 --shm-size 1g iod-example-pdb
+function setNodeVersion() {
+    if [[ -z "$1" ]]; then
+        print "Usage: setNodeVersion [12|14|latest]. If you see an error then verify that the version is actually installed. e.g. 'brew search node'"
+        return
+    fi
+
+    if [[ "$1" =~ "latest" ]]; then
+        brew link --overwrite node
+    else
+        brew link --overwrite node@$1
+    fi
+}
+
+function showSystemCTLCommands() {
+    print "systemctl list-units --type=service [--state=[active|failed]"
+    print "ls -hal /etc/systemd/system/*.service"
+    print "sudo systemd-analyze verify validates service daemon"
+    print "sudo systemctl daemon-reload"
+    print "sudo /usr/share/logstash/bin/system-install /etc/logstash/startup.options systemd generates a logstash.service file"
+}
+
+function targz () {
+    tar -zcvf "$1.tar.gz" "$2"
+}
+
+function untar () {
+    tar -xvf "$1"
 }
 
 function setDWLogLevel() {
@@ -342,6 +350,10 @@ function setDWLogLevel() {
     curl http://localhost:$applicationPort/healthcheck
 }
 
+# export NVM_DIR="$HOME/.nvm"
+# [ -s "/usr/local/opt/nvm/nvm.sh" ] && \. "/usr/local/opt/nvm/nvm.sh"  # This loads nvm
+# [ -s "/usr/local/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/usr/local/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
 # Aliases
 # =================================================================================================
 
@@ -354,7 +366,7 @@ alias ll='ls -hal'
 setupPython
 
 # Setup Java
-setJavaHome 18
+setJavaHome 1.8
 
 # Docker
 alias dockc='docker-compose'
@@ -374,21 +386,29 @@ alias kubectl-rr="kubectl rollout restart deployment $1"
 # Maven
 alias mvn-skoon="mvn clean install -DskipTests"
 alias mvn-jacoco="mvn org.jacoco:jacoco-maven-plugin:0.8.5:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.5:report"
+alias mvn-tests=" mvn -T 30C -o test -Dparallel=all -pl multicloud-database-adapter-api,multicloud-database-adapter-commons,multicloud-database-adapter-dal,multicloud-database-adapter-worker"
+
+# Rancher
+export PATH="$PATH:/Users/himeshramjee/.rd/bin"
+# alias docker="/Users/himeshramjee/.rd/bin/docker"
 
 print '\n$PATH: '$PATH
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
 print "========================================\n";
 
 print "Additional scripts"
 print "========================================\n";
 
-if [[ -f "local-only.sh" ]]; then
-    print "Sourcing local-only.sh..."
-    source local-only.sh
-else
-    print "No local-only scripts to load."
-fi
+print "Sourcing ~/local-only-mc.sh"
+source ~/local-only-mc.sh
+print "Done.\n"
+print "Sourcing ~/local-only-re.sh"
+source ~/local-only-re.sh
+print "Done.\n"
+
+# if [[ -f "~/local-only-mc.sh" ]]; then
+#     print "Sourcing local-only-mc.sh..."
+#     source ~/local-only-mc.sh
+# else
+#     print "No local-only scripts to load."
+#     ls -hal ~/local-only-*.sh
+# fi
