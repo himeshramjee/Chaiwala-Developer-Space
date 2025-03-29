@@ -94,10 +94,49 @@ for namespace in "${NAMESPACE_ARRAY[@]}"; do
       --auth "$OCI_PROFILE_AUTH" \
       --output json 2>/dev/null || echo '{"data": []}')
   
-  prefix_count=${#PREFIX_ARRAY[@]}
-  filter_expr='false'
-  for prefix in "${PREFIX_ARRAY[@]}"; do
-    filter_expr="$filter_expr or (.name | startswith(\"$prefix\"))"
+  # Extract unique metric names, dimensions, and resource groups
+  metrics=$(echo "$metrics_output" | jq -r '.data.items[] | {metricName, dimensions, resourceGroup} | @base64')
+  cat oci-list-metrics-cache-result.json | jq -r '.data[] | [.name, .dimensions.application] | @tsv' | column -t -s $'\t'
+  
+  if [ -z "$metrics" ]; then
+    echo "No metrics found for namespace: $namespace" >&2
+    continue
+  fi
+  
+  # Process each metric
+  for metric in $metrics; do
+    metric_data=$(echo "$metric" | base64 -d)
+    metric_name=$(echo "$metric_data" | jq -r '.metricName')
+    dimensions=$(echo "$metric_data" | jq -r '.dimensions | to_entries | map(.key + "=" + .value) | join(", ")')
+    resource_group=$(echo "$metric_data" | jq -r '.resourceGroup // "null"')
+    
+    case "$OUTPUT_FORMAT" in
+      json)
+        if [ "$first_result" = true ]; then
+          first_result=false
+        else
+          echo ","
+        fi
+        echo "  {\"namespace\": \"$namespace\", \"metricName\": \"$metric_name\", \"dimensions\": \"$dimensions\", \"resourceGroup\": \"$resource_group\"}"
+        ;;
+      csv)
+        echo "\"$namespace\",\"$metric_name\",\"$dimensions\",\"$resource_group\""
+        ;;
+      *)
+        # Table format
+        # Truncate long strings for better display
+        if [ ${#metric_name} -gt 28 ]; then
+          metric_name="${metric_name:0:25}..."
+        fi
+        if [ ${#dimensions} -gt 28 ]; then
+          dimensions="${dimensions:0:25}..."
+        fi
+        if [ ${#resource_group} -gt 18 ]; then
+          resource_group="${resource_group:0:15}..."
+        fi
+        printf "%-25s %-30s %-30s %-20s\n" "$namespace" "$metric_name" "$dimensions" "$resource_group"
+        ;;
+    esac
   done
   echo "Filter: $filter_expr"
 

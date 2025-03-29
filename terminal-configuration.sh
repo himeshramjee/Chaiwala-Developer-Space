@@ -7,13 +7,13 @@ print "Current Shell is $(echo $SHELL)"
 printf '\e[8;40;230t';
 
 NOW_DATE=$(date +"%F")
-HOME_DIRECTORY=$(echo ~)
-export BACKUPS_FOLDER="$HOME_DIRECTORY/workspaces/OracleContent/backups"
+export BACKUPS_FOLDER="$HOME/cloud-backups"
+export WORKSPACE_FOLDER="$HOME/workspaces/"
 
 function resetTerminalConfig() {
     # FIXME: Cleanup with error handling
 
-    LOCAL_SCRIPT_LOCATION="$HOME_DIRECTORY/.zshrc"
+    LOCAL_SCRIPT_LOCATION="$HOME/.zshrc"
 
     # Backup current file
     if [[ -f "$LOCAL_SCRIPT_LOCATION" ]]; then
@@ -35,16 +35,22 @@ function resetTerminalConfig() {
 }
 
 function updateZshConfig() {
-    print "Executing cp $BACKUPS_FOLDER/zshrc.sh ~/.zshrc..."
-    cp $BACKUPS_FOLDER/zshrc.sh ~/.zshrc
-    print "Copy Complete. Sourcing..."
+    print "Symlink or deploy a copy? [l(ink)|c(opy)] "; read inputLCInstall
+    if [[ $inputLCInstall =~ [cC] ]]; then
+        print "Executing cp $BACKUPS_FOLDER/zshrc.sh ~/.zshrc..."
+        cp $BACKUPS_FOLDER/zshrc.sh ~/.zshrc
+    else
+        ln -sf $BACKUPS_FOLDER/zshrc.sh ~/.zshrc
+    fi
+    
+    print "Complete. Sourcing..."
     source ~/.zshrc
     print "Local script is updated.\n"
 }
 
 function updateOciCliConfig() {
-    print "Executing: cp $CLI_BACKUP_UP_PATH/oci-config/oci-config.config $HOME_DIRECTORY/.oci/config"
-    cp $CLI_BACKUP_UP_PATH/oci-config/oci-config.config $HOME_DIRECTORY/.oci/config
+    print "Executing: cp $CLI_BACKUP_UP_PATH/oci-config/oci-config.config $HOME/.oci/config"
+    cp $CLI_BACKUP_UP_PATH/oci-config/oci-config.config $HOME/.oci/config
     print "Updating file permissions with: chmod 0600 ~/.oci/config"
     chmod 0600 ~/.oci/config
     print "Done."
@@ -89,15 +95,15 @@ function renewDomainCerts() {
 }
 
 function setJavaHome() {
-    if ! command -v java &> /dev/null; then
+    if command -v java &> /dev/null; then
         print "\nSetting up Java..."
         # https://mkyong.com/java/how-to-install-java-on-mac-osx/
         # https://medium.com/notes-for-geeks/java-home-and-java-home-on-macos-f246cab643bd
         print "JAVA_HOME is currently set to: $JAVA_HOME."
 
         if [[ -z "$1" ]]; then
-            print "Usage: setJavaHome [1.8|11|17|18]"
-            print "NB! Version are dependent on what's installed on local system!"
+            print "Usage: setJavaHome [17|23]"
+            print "NB! Version options are dependent on what's installed on local system!"
             print "If the final version check isn't as you expect then don't use this script. Try manually setting JAVA_HOME to whichever version you need."
 
             print "\nListing available JVMs that can be used to set JAVA_HOME environment variable...\n"
@@ -111,6 +117,10 @@ function setJavaHome() {
         java -version
         print "JAVA_HOME: $JAVA_HOME"
         print "Done."
+    else
+        print "\nJava runtime is not installed on this machine. Check out https://formulae.brew.sh/cask/oracle-jdk"
+        print "brew install --cask oracle-jdk"
+        print "brew install --cask oracle-jdk@17"
     fi
 }
 
@@ -243,6 +253,36 @@ function launchChromeWithInsecureContent() {
     print "Done."
 }
 
+function sy() {
+    if ! command -v yq &> /dev/null; then
+        print "YAML Query not found. Install? [y|n] "; read inputYQInstall
+        if [[ $inputYQInstall =~ [yY] ]]; then
+            brew install yq
+        fi
+        print "\nDone. Please re-run your command."
+    else
+        property_name=$1
+        file_path=$2
+        
+        print "Searching $file_path for following properties: $property_name.\n"
+
+        # Use yq to convert the YAML file into JSON
+        json=$(yq eval-all "$file_path" -o=json )
+        echo "JSON output:"
+        echo "$json"
+        # Use grep to search for the property in the JSON data
+        properties=$(echo "$json" | grep -o -E "\.$property_name\b")
+        if [ -n "$properties" ]; then
+            IFS='.' read -r -a keys <<< "$properties"
+            for key in "${keys[@]}"; do
+                echo "$key"
+            done
+        else
+            echo "Property '$property_name' not found in the YAML file."
+        fi
+    fi
+}
+
 # Yubikey Hepers
 # ===================================================================================
 export OPENSC_LIB_VERSION="0.23.0"
@@ -347,11 +387,8 @@ function loadSSHKeys() {
     print "\nAdding $OPENSC_PATH back to ssh agent...this will ask for your yubi PIN"
     ssh-add -s $OPENSC_PATH
     
-    print "\nAdding himesh.ramjee@gmail.com keys..."
+    print "\nAdding himesh.ramjee@gmail.com keys personal..."
     ssh-add ~/.ssh/himesh.ramjee@gmail.com
-
-    print "\nAdding ams keys..."
-    ssh-add ~/.ssh/ams_ssh_agent.key
 
     print "\nConfirm all keys added; running ssh-add -l..."
     ssh-add -l
@@ -506,6 +543,77 @@ function showCrowdStrikeCommands() {
     print "Start the sensor: sudo /Applications/Falcon.app/Contents/Resources/falconctl load"
 }
 
+function installMaven() {
+    if ! command -v mvn &> /dev/null; then
+        print "\nMaven not found. Install? [y|n] "; read inputMvnInstall
+        if [[ $inputMvnInstall =~ [yY] ]]; then
+            brew install maven
+        fi
+    else
+        print "\n"
+        mvn -version
+    fi
+}
+
+function checkHSTS() {
+    if [[ ! -z $1 ]]; then
+        if [[ $2 =~ "no-filter" ]]; then
+            curl -s -D - $1
+        else
+            curl -s -D - $1 | grep -i "Strict-Transport-Security"
+        fi
+    else
+        print "A valid target URL is required."
+        print "Usage: checkHSTS <target-url>\n"
+    fi
+}
+
+function encryptEncode() {
+    echo "sha256 encrypted, base64 encoded: $(echo -n "$1" | openssl dgst -sha256 -hmac "$2" -binary | base64)"
+}
+
+function klogs() {
+    namespace="falcon-system"
+
+    if [[ -z $1 ]]; then
+        print "Print last 15 log lines for random pod in namespace or the optionally specified pod"
+        print "Usage: klogs <namespace> [pod-name]"
+
+        print "\nNo namespace specific. Defaulting to: $namespace."
+    else
+        namespace=$1
+    fi
+
+    if [[ -z $2 ]]; then
+        print "\nNo specific pod name specified. Choosing randomly."
+    fi
+
+    podsList=$(kubectl get pods -n $namespace --no-headers)
+    print "\nPod listing:\n$podsList"
+    
+    print "\nTODO: K8s API Server Logs"
+    tail -n 5 /var/log/kube-apiserver.log || print "\nAPI server logs not found"
+    
+    print "\nTODO: K8s Scheduler Logs"
+    tail -n 5 /var/log/kube-scheduler.log || print "\nScheduler logs not found"
+    
+    print "\nTODO: K8s Controller Logs"
+    tail -n 5 /var/log/kube-controller-manager.log || print "\nController logs not found"
+
+    # Pod Logs
+    first_pod=$(echo $podsList | awk 'NR==1 {print $1}')
+    print "\nPod chosen: $first_pod"
+    kubectl logs -n $namespace $first_pod --tail=15
+
+    print "\n"
+}
+
+function scm-oci() {
+    COMMIT_HASH="$1"
+    echo "oci devops repository get-commit --repository-id $SCM_REPO_ID --commit-id $COMMIT_HASH --endpoint $SCM_ENDPOINT --profile session --auth security_token"
+    oci devops repository get-commit --repository-id $SCM_REPO_ID --commit-id $COMMIT_HASH --endpoint $SCM_ENDPOINT --profile session --auth security_token
+}
+
 # Aliases
 # =================================================================================================
 
@@ -514,9 +622,7 @@ loadBrew
 
 # Local OS
 alias ll='ls -hal'
-
-# Agents
-alias reload-cs='sudo /Applications/Falcon.app/Contents/Resources/falconctl load && echo "\n==========\nNow retry VPN connection\n==========\n"'
+alias pbcwd='pwd | pbcopy && pwd'
 
 # Yubikey
 alias loadyubikey='ssh-add -s /usr/local/lib/opensc-pkcs11.so'
@@ -533,6 +639,9 @@ setupPyenv
 
 # Setup Java
 setJavaHome 17
+
+# Setup Maven
+installMaven
 
 # Setup Node
 if command -v nvm &> /dev/null; then
@@ -552,15 +661,19 @@ alias resetimages='docker rmi $(docker images) -f'
 alias resetnetworks='docker network prune'
 
 # Kubernetes
-alias kubectl-ll="kubectl get pods -l app!=himesh -o=jsonpath=\"{range .items[*]}{.metadata.name}{'\n'}{end}\""
-alias kubectl-ga="clear && echo 'Deployments...\n' && kubectl get deployments && echo '\nServices...\n' && kubectl get services && echo '\nPods...\n' && kubectl get pods && echo '\nPod names...\n' && kubectl-ll"
-alias kubectl-rr="kubectl rollout restart deployment $1"
-alias kubectl-pd="kubectl get pods -o json | jq '.items | group_by(.spec.nodeName)[][] | [.spec.nodeName, .metadata.name] | @csv' --raw-output"
+alias k=kubectl
+alias kll="kubectl get pods -l app!=himesh -o=jsonpath=\"{range .items[*]}{.metadata.name}{'\n'}{end}\""
+alias kga="clear && echo 'Deployments...\n' && kubectl get deployments && echo '\nServices...\n' && kubectl get services && echo '\nPods...\n' && kubectl get pods && echo '\nPod names...\n' && kubectl-ll"
+alias krr="kubectl rollout restart deployment $1"
+alias kpd="kubectl get pods -o json | jq '.items | group_by(.spec.nodeName)[][] | [.spec.nodeName, .metadata.name] | @csv' --raw-output"
+
+# Crowdstrike
+alias check-falcon-config="/opt/CrowdStrike/falconctl -g --aph --app --cid --tags"
 
 # Maven
 
 # Rancher
-alias rdocker="$HOME_DIRECTORY/.rd/bin/docker"
+alias rdocker="$HOME/.rd/bin/docker"
 
 # Git
 alias gfp="git fetch && git pull"
@@ -572,7 +685,7 @@ alias getLastCommit="git log -1 --pretty=format:'%H'"
 # print "========================================\n";
 GRAPHVIZ_PATH='/usr/local/bin/dot'
 export GRAPHVIZ_DOT="$GRAPHVIZ_PATH"
-export PATH="$PATH:$HOME_DIRECTORY/.rd/bin:$GRAPHVIZ_PATH"
+export PATH="$PATH:$HOME/.rd/bin:$GRAPHVIZ_PATH"
 
 # SQL
 export PATH="$PATH:/usr/local/Caskroom/sqlcl/24.1.0.087.0929/sqlcl/bin"

@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "compartment-id": "ocid1.compartment.oc1.1",
+      "dimensions": {
+        "application": "endpoint-monitor-service"
+      },
+      "name": "service.down",
+      "namespace": "env1_services"
+    },
+    {
+      "compartment-id": "ocid1.compartment.oc1.1",
+      "dimensions": {
+        "application": "endpoint-monitor-service"
+      },
+      "name": "health.up",
+      "namespace": "env1_services"
+    }
+  ]
+}
