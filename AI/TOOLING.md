@@ -49,6 +49,7 @@
     - [Meta LLaMA](https://ai.facebook.com/llama/)
     - [Mistral](https://mistral.ai/)
 1.  IDE Integration
-    - [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code)
+    - [Continue](https://continue.dev/)
     - [CLINE](https://github.com/cline/cline)
+    - [Claude Code CLI](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code)
     - [Codeium](https://codeium.com/)

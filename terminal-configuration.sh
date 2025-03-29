@@ -10,6 +10,8 @@ NOW_DATE=$(date +"%F")
 export BACKUPS_FOLDER="$HOME/cloud-backups"
 export WORKSPACE_FOLDER="$HOME/workspaces/"
 
+export PATH=~/.npm-global/bin:$PATH
+
 function resetTerminalConfig() {
     # FIXME: Cleanup with error handling
 
