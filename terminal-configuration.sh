@@ -59,7 +59,7 @@ function updateOciCliConfig() {
 }
 
 function loadBrew() {
-    if [[ ! -d "/opt/homebrew" && ! -d "/usr/local/bin/brew" ]]; then
+    if [[ ! (-d "/opt/homebrew" || -d "/usr/local/bin/brew") ]]; then
         print "Brew not found. Install? [y|n] "; read inputBrewInstall
         if [[ $inputBrewInstall =~ [yY] ]]; then
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
@@ -70,7 +70,7 @@ function loadBrew() {
 
     # if command -v brew &> /dev/null; then
     if [[ -d "/opt/homebrew/bin" || -d "/usr/local/bin/brew" ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
+        eval "$(brew shellenv)"
     else
         print "Whoops! Brew not found bruuuu."
     fi
