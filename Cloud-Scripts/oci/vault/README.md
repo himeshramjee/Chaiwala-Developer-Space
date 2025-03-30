@@ -176,12 +176,16 @@ If no auth_type is specified either in the command line or in the secrets file, 
 1. The script validates the input file and checks dependencies
 2. It verifies the OCI session is valid
 3. It checks if the specified vault exists:
-   - If the vault doesn't exist or isn't specified, it creates a new vault
+   - If the vault doesn't exist or isn't specified, it creates a new vault using the `oci kms management vault create` command 
+   - If multiple vaults with the same name exist, it will prompt you to specify a vault ID
 4. It checks if the specified encryption key exists:
-   - If the key doesn't exist or isn't specified, it creates a new key
+   - It retrieves the management endpoint for the vault
+   - It then searches for encryption keys with the specified name using the `oci kms management key list` command and using the management endpoint
+   - If the key doesn't exist or isn't specified, it creates a new key using the `oci kms management key create` command
+   - If multiple keys with the same name exist, it will prompt you to specify a key ID
 5. For each secret in the configuration file:
-   - If the secret doesn't exist, it creates a new secret
-   - If the secret exists, it displays the current and new values and prompts for confirmation before updating
+   - If the secret doesn't exist, it creates a new secret using the `oci vault secret create-base64` command
+   - If the secret exists, it attempts to retrieve the current value for comparison, displays the current and new values (if available), and prompts for confirmation before updating using the `oci vault secret update-base64` command
 6. After processing all secrets, it displays a summary of actions performed
 
 ### Error Handling
@@ -195,8 +199,9 @@ The script includes comprehensive error handling for:
 
 When running in verbose mode (`-v`), the script provides:
 
-- Detailed output of all OCI CLI commands being executed
+- Detailed output of all OCI CLI commands being executed (with exact command lines)
 - Complete error messages from the OCI CLI
+- Debug information on data structures (such as secret bundle format)
 - Suggested corrective actions based on the specific error encountered
 - Troubleshooting guidance for common issues like permissions, authentication, and parameter validation
 
@@ -206,3 +211,7 @@ When running in verbose mode (`-v`), the script provides:
 - Secret content marked as `BASE64` is assumed to be already base64-encoded
 - The script will prompt for confirmation before updating existing secrets
 - For security reasons, consider using environment variables or a secure method to pass sensitive information to the script
+- The script uses different OCI CLI commands for different operations:
+  - `oci kms management vault` commands for vault operations
+  - `oci kms management key` commands with the vault's management endpoint for key operations
+  - `oci vault secret` and `oci secrets secret-bundle` commands for secret operations
