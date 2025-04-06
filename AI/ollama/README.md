@@ -19,12 +19,18 @@ This project uses a hybrid approach to handle dependencies:
 
 1. **Python Environment**: The installation script and management code run in an isolated pyenv virtual environment, providing consistent Python dependencies.
 
-2. **Ollama Installation**: Ollama itself is installed as a system binary (not a Python package) via the official Ollama installer. This means:
-   - The Ollama binary is placed in a system location (typically `/usr/local/bin/ollama`)
+2. **Ollama Installation**: Ollama itself is installed as a system binary (not a Python package):
+   - On macOS: Using Homebrew if available, falling back to the official installer script if not
+   - On Linux: Using the official Ollama installer script
+   - The Ollama binary is placed in a system location (typically `/usr/local/bin/ollama` or Homebrew's bin directory)
    - Ollama's models and data are stored in system locations (typically `~/.ollama`)
    - The Ollama binary can be used by other applications outside the virtual environment
+   
+3. **Ollama Service Management**:
+   - On macOS with Homebrew: Uses `brew services` to manage the Ollama service
+   - Otherwise: Runs the Ollama service in the background
 
-3. **Shell Aliases**: The created aliases reference the system-installed Ollama binary, making them available regardless of whether you're in the virtual environment or not.
+4. **Shell Aliases**: The created aliases reference the system-installed Ollama binary, making them available regardless of whether you're in the virtual environment or not.
 
 This approach keeps the Python code dependencies isolated while allowing Ollama to be used system-wide.
 

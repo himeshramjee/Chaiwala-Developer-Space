@@ -42,8 +42,17 @@ def is_ollama_installed():
     result = run_command("which ollama", check=False)
     return result.returncode == 0
 
+def is_macos():
+    """Check if the current operating system is macOS."""
+    return sys.platform == 'darwin'
+
+def is_homebrew_installed():
+    """Check if Homebrew is installed on macOS."""
+    result = run_command("which brew", check=False)
+    return result.returncode == 0
+
 def install_ollama():
-    """Install Ollama using the official installation script."""
+    """Install Ollama using the appropriate method for the OS."""
     print_step("Installing Ollama")
     
     if is_ollama_installed():
@@ -52,13 +61,30 @@ def install_ollama():
         return
     
     print("Installing Ollama...")
-    curl_command = 'curl -fsSL https://ollama.com/install.sh | sh'
-    run_command(curl_command, "Downloading and running the Ollama installer")
+    
+    if is_macos():
+        if is_homebrew_installed():
+            print("Using Homebrew to install Ollama on macOS...")
+            run_command("brew install ollama", "Installing Ollama via Homebrew")
+        else:
+            print("Homebrew not found. Using the official installer script...")
+            curl_command = 'curl -fsSL https://ollama.com/install.sh | sh'
+            run_command(curl_command, "Downloading and running the Ollama installer")
+    else:
+        # Linux or other OS
+        curl_command = 'curl -fsSL https://ollama.com/install.sh | sh'
+        run_command(curl_command, "Downloading and running the Ollama installer")
     
     # Verify installation
     if not is_ollama_installed():
-        print("Installation seems to have failed. Please try installing manually:")
-        print("curl -fsSL https://ollama.com/install.sh | sh")
+        if is_macos():
+            print("Installation seems to have failed. Please try installing manually:")
+            print("brew install ollama")
+            print("or")
+            print("curl -fsSL https://ollama.com/install.sh | sh")
+        else:
+            print("Installation seems to have failed. Please try installing manually:")
+            print("curl -fsSL https://ollama.com/install.sh | sh")
         sys.exit(1)
         
     print("✅ Ollama installed successfully!")
@@ -68,18 +94,40 @@ def start_ollama_service():
     print_step("Starting Ollama service")
     
     # Check if Ollama is already running
-    ps_result = run_command("pgrep ollama", check=False)
-    
-    if ps_result.returncode == 0:
-        print("Ollama service is already running!")
-    else:
-        print("Starting Ollama service...")
-        # Run Ollama in the background
-        run_command("ollama serve &", "Starting Ollama service")
+    if is_macos():
+        # On macOS, check both pgrep and Homebrew services if available
+        ps_result = run_command("pgrep ollama", check=False)
         
-        # Give it a moment to start up
-        print("Waiting for Ollama service to start...")
-        time.sleep(3)
+        if ps_result.returncode == 0:
+            print("Ollama service is already running!")
+        else:
+            # If Homebrew is installed, try to use brew services
+            if is_homebrew_installed():
+                brew_status = run_command("brew services list | grep ollama", check=False)
+                
+                if "started" in (brew_status.stdout or ""):
+                    print("Ollama service is already running via Homebrew!")
+                else:
+                    print("Starting Ollama service via Homebrew...")
+                    run_command("brew services start ollama", "Starting Ollama service")
+            else:
+                # Fallback to regular method
+                print("Starting Ollama service...")
+                run_command("ollama serve &", "Starting Ollama service")
+    else:
+        # Linux or other OS - use the original method
+        ps_result = run_command("pgrep ollama", check=False)
+        
+        if ps_result.returncode == 0:
+            print("Ollama service is already running!")
+        else:
+            print("Starting Ollama service...")
+            # Run Ollama in the background
+            run_command("ollama serve &", "Starting Ollama service")
+    
+    # Give it a moment to start up
+    print("Waiting for Ollama service to start...")
+    time.sleep(3)
     
     print("✅ Ollama service is running!")
 
@@ -96,6 +144,10 @@ def pull_coding_models():
         {
             "name": "codellama:13b",
             "description": "Meta's CodeLlama 13B - Better at understanding complex code"
+        },
+        {
+            "name": "Llama-4-Maverick-17B-128E-Instruct",
+            "description": "Meta's Llama 17B - Good for general coding tasks"
         },
         {
             "name": "deepseek-coder-v2:16b",
@@ -187,7 +239,7 @@ Run one of these commands to start a vibe coding session:
 
 - "Write a Python function to extract all emails from a text file"
 - "Help me refactor this code: [paste your code]"
-- "Explain how this regex works: ^(\w+)@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$"
+- "Explain how this regex works: ^(\\w+)@[a-zA-Z_]+?\\.[a-zA-Z]{2,3}$"
 - "Debug this function: [paste your function]"
 - "Suggest a better way to implement this algorithm"
 

@@ -25,6 +25,7 @@ var/
 venv/
 ENV/
 .env
+.venv/
 
 # pyenv
 .python-version

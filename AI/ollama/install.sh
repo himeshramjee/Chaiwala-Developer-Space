@@ -22,7 +22,8 @@ if ! command -v pyenv &>/dev/null; then
 fi
 
 # Set Python version for this project
-PYTHON_VERSION="3.10.0"
+PYTHON_VERSION="3.12"
+echo "PyEnv is already installed. Checking for python version $PYTHON_VERSION..."
 
 # Check if the Python version is installed with pyenv
 if ! pyenv versions | grep -q $PYTHON_VERSION; then
