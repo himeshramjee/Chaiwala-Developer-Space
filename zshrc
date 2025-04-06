@@ -7,16 +7,15 @@ print "Current Shell is $(echo $SHELL)"
 printf '\e[8;40;230t';
 
 NOW_DATE=$(date +"%F")
-export BACKUPS_FOLDER="$HOME/cloud-backups"
+ZSHRC_FILE_NAME="zshrc"
+LOCAL_SCRIPT_LOCATION="$HOME/.$ZSHRC_FILE_NAME"
 export WORKSPACE_FOLDER="$HOME/workspaces/"
+export BACKUPS_FOLDER="$WORKSPACE_FOLDER/Chaiwala-Developer-Space/"
 
 export PATH=~/.npm-global/bin:$PATH
 
 function resetTerminalConfig() {
     # FIXME: Cleanup with error handling
-
-    LOCAL_SCRIPT_LOCATION="$HOME/.zshrc"
-
     # Backup current file
     if [[ -f "$LOCAL_SCRIPT_LOCATION" ]]; then
         mv $LOCAL_SCRIPT_LOCATION $LOCAL_SCRIPT_LOCATION-$NOW_DATE.bak
@@ -28,7 +27,7 @@ function resetTerminalConfig() {
     fi
     
     # Fetch latest script
-    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/terminal-configuration.sh > $LOCAL_SCRIPT_LOCATION
+    curl -L https://raw.githubusercontent.com/himeshramjee/Chaiwala-Developer-Space/master/$ZSHRC_FILE_NAME > $LOCAL_SCRIPT_LOCATION
     print "\nLocal config updated."
 
     print "Attempting to apply it..."
@@ -39,10 +38,10 @@ function resetTerminalConfig() {
 function updateZshConfig() {
     print "Symlink or deploy a copy? [l(ink)|c(opy)] "; read inputLCInstall
     if [[ $inputLCInstall =~ [cC] ]]; then
-        print "Executing cp $BACKUPS_FOLDER/zshrc.sh ~/.zshrc..."
-        cp $BACKUPS_FOLDER/zshrc.sh ~/.zshrc
+        print "Executing cp $BACKUPS_FOLDER/$ZSHRC_FILE_NAME.sh ~/.zshrc..."
+        cp $BACKUPS_FOLDER/$ZSHRC_FILE_NAME ~/.zshrc
     else
-        ln -sf $BACKUPS_FOLDER/zshrc.sh ~/.zshrc
+        ln -sf $BACKUPS_FOLDER/$ZSHRC_FILE_NAME ~/.zshrc
     fi
     
     print "Complete. Sourcing..."
@@ -59,7 +58,7 @@ function updateOciCliConfig() {
 }
 
 function loadBrew() {
-    if [[ ! (-d "/opt/homebrew" || -d "/usr/local/bin/brew") ]]; then
+    if [[ ! (-d "/opt/homebrew") && ! (-L "/usr/local/bin/brew") ]]; then
         print "Brew not found. Install? [y|n] "; read inputBrewInstall
         if [[ $inputBrewInstall =~ [yY] ]]; then
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
@@ -69,7 +68,7 @@ function loadBrew() {
     fi
 
     # if command -v brew &> /dev/null; then
-    if [[ -d "/opt/homebrew/bin" || -d "/usr/local/bin/brew" ]]; then
+    if [[ -d "/opt/homebrew/bin" || -L "/usr/local/bin/brew" ]]; then
         eval "$(brew shellenv)"
     else
         print "Whoops! Brew not found bruuuu."
@@ -697,7 +696,7 @@ print "Additional scripts"
 print "Script directory: $BACKUPS_FOLDER/local-only-scripts/"
 print "=========================================================================================\n";
 
-localScripts=("local-only-all.sh" "local-only-oci.sh" "local-only-ohai.sh")
+localScripts=("")
 # ${localScripts[@]} -> Values
 # ${!localScripts[@]} -> Indices
 for localScript in ${localScripts[@]}; do
