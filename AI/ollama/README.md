@@ -1,98 +1,180 @@
 # Ollama Vibe
 
-A utility for installing and configuring Ollama with coding-optimized LLM models for "vibe coding" sessions. This project has been set up to run within a pyenv Python virtual environment for better isolation and dependency management.
+A bash utility for installing and configuring Ollama with coding-optimized LLM models for "vibe coding" sessions.
 
 ## Features
 
-- Automated installation of Ollama
+- Automated installation of Ollama as a local service using the official Ollama installer script
 - Pulls and configures coding-optimized LLM models:
   - CodeLlama 7B and 13B
   - DeepSeek Coder v2
   - Gemma 3 12B
-- Creates convenient shell aliases for quick access
+- Installs OpenWebUI for a graphical interface to manage models (using Podman)
 - Provides a comprehensive usage guide
-- Runs within an isolated Python virtual environment
 
 ## How it Works
 
-This project uses a hybrid approach to handle dependencies:
+Ollama Vibe provides a one-command installation experience that:
 
-1. **Python Environment**: The installation script and management code run in an isolated pyenv virtual environment, providing consistent Python dependencies.
+1. Installs Ollama on your system using the official installer
+2. Configures necessary environment variables for external access
+3. Installs Podman (if not already installed) to run container workloads
+4. Uses existing Podman machine or creates one if needed
+5. Deploys OpenWebUI in a Podman container for a graphical interface
+6. Downloads and prepares optimized coding models
+7. Sets up proper networking between components
 
-2. **Ollama Installation**: Ollama itself is installed as a system binary (not a Python package):
-   - On macOS: Using Homebrew if available, falling back to the official installer script if not
-   - On Linux: Using the official Ollama installer script
-   - The Ollama binary is placed in a system location (typically `/usr/local/bin/ollama` or Homebrew's bin directory)
-   - Ollama's models and data are stored in system locations (typically `~/.ollama`)
-   - The Ollama binary can be used by other applications outside the virtual environment
-   
-3. **Ollama Service Management**:
-   - On macOS with Homebrew: Uses `brew services` to manage the Ollama service
-   - Otherwise: Runs the Ollama service in the background
-
-4. **Shell Aliases**: The created aliases reference the system-installed Ollama binary, making them available regardless of whether you're in the virtual environment or not.
-
-This approach keeps the Python code dependencies isolated while allowing Ollama to be used system-wide.
+All of this is handled automatically with appropriate error checking and user feedback throughout the process. The installer is designed to work with existing Podman setups and will use your currently running Podman machine if one exists.
 
 ## Requirements
 
-- macOS (Designed for MacBook)
-- Internet connection (for downloading models)
-- Bash or Zsh shell
+- **Operating System**: macOS or Linux
+- **Hardware**: 
+  - Minimum 8GB RAM (16GB+ recommended)
+  - 20GB free disk space for models
+  - x86_64 or ARM64 architecture
+- **macOS Dependencies**: 
+  - Homebrew (for Podman installation)
+- **Linux Dependencies**:
+  - APT or DNF package manager (for Podman installation)
+  - sudo privileges
 
 ## Installation
 
-1. Clone this repository:
+Run the following command in your terminal:
 
-   ```bash
-   git clone https://github.com/yourusername/ollama-vibe.git
-   cd ollama-vibe
-   ```
+```bash
+# For macOS or Linux
+bash install.sh
+```
 
-2. Run the installation script:
+The installation script will guide you through the process and provide feedback on each step.
 
-   ```bash
-   chmod +x install.sh
-   ./install.sh
-   ```
+### Advanced Installation Options
 
-   This script will:
+You can customize the installation with environment variables:
 
-   - Install pyenv if not already installed
-   - Set up a Python 3.10 environment using pyenv
-   - Create and activate a virtual environment
-   - Install the ollama-vibe package
-   - Run the setup process for Ollama and download models
+```bash
+# Use a specific port for OpenWebUI (if the default 3000 is in use)
+OPENWEBUI_PORT=3100 bash install.sh
+
+# Install specific models only (space-separated list)
+MODELS="codellama:7b gemma2:12b" bash install.sh
+```
+
+### Compatibility Notes
+
+- **macOS**: The script will use your existing Podman machine if one is already running. Podman on macOS can only run one machine at a time.
+- **Linux**: The script works with both apt and dnf-based distributions.
 
 ## Usage
 
-After installation, you can start coding sessions with:
+After installation:
 
-- `vibecode` - Uses CodeLlama 7B (balanced speed and capability)
-- `vibecode-pro` - Uses CodeLlama 13B (better for complex tasks)
-- `vibecode-deep` - Uses DeepSeek Coder (specialized for coding tasks)
-
-A detailed usage guide is created at `~/ollama-vibe-coding-guide.md`.
-
-## Development
-
-If you want to contribute or modify this project:
-
-1. Activate the virtual environment:
-
+1. **Access Ollama via Terminal**:
    ```bash
-   cd ollama-vibe
-   source .venv/bin/activate
+   # Run a model directly
+   ollama run codellama:7b
+   
+   # List available models
+   ollama list
    ```
 
-2. Make your changes to the code
+2. **Access via OpenWebUI**:
+   - Open your browser and navigate to `http://localhost:3000`
+   - Create an account or continue as guest
+   - Connect to your local Ollama instance (should be automatic)
+   - Start chats with any of the installed models
 
-3. Test your changes:
-   ```bash
-   python -m ollama_vibe.cli
-   ```
+3. **For Development Workflows**:
+   - Use the models for coding assistance, debugging, and documentation
+   - Connect to Ollama API at `http://localhost:11434` for application integrations
+
+## Troubleshooting
+
+### Ollama Service Issues
+
+If Ollama fails to start:
+```bash
+# Check Ollama service status
+pgrep -x ollama
+
+# Start Ollama manually
+ollama serve
+```
+
+### OpenWebUI Connection Issues
+
+If OpenWebUI can't connect to Ollama:
+```bash
+# Check if Ollama is listening on 0.0.0.0
+ps aux | grep ollama
+
+# Verify networking between Podman and host
+podman inspect ollama-webui | grep IPAddress
+```
+
+### Common Installation Issues
+
+#### "Proxy Already Running" Error
+
+If you encounter a "proxy already running" error:
+```bash
+# Stop the installation and try again with a different port
+OPENWEBUI_PORT=3100 bash install.sh
+
+# Or manually fix by cleaning up existing ports
+lsof -i :3000  # Find processes using port 3000
+kill -9 [PID]  # Kill the process
+
+# Check for existing Podman containers
+podman ps -a
+podman rm -f openwebui  # Remove existing container if needed
+```
+
+#### "Unable to start podman-machine" Error
+
+If you see errors related to Podman machine:
+```bash
+# Check which Podman machines exist and their status
+podman machine list
+
+# If you have multiple machines, ensure only one is running
+podman machine stop [other-machine-name]
+
+# If you want to remove an existing machine
+podman machine rm [machine-name]
+
+# The script will use any running machine automatically
+```
+
+#### Gateway IP Detection Issues
+
+If OpenWebUI can't connect to Ollama:
+```bash
+# Get the Podman gateway IP
+podman machine inspect | grep Gateway
+
+# Then manually set this when running the install
+OLLAMA_GATEWAY_IP=192.168.x.x bash install.sh
+```
+
+### Model Download Issues
+
+If model downloads fail:
+```bash
+# Check network connection
+ping ollama.com
+
+# Try manual download
+ollama pull codellama:7b
+```
+
+For additional support, please open an issue on GitHub.
 
 ## Acknowledgements
 
 - [Ollama](https://ollama.com/) for making local LLMs accessible
+- [OpenWebUI](https://github.com/open-webui/open-webui) for the web interface
+- [Podman](https://podman.io/) for the daemonless container engine
 - The teams behind CodeLlama, DeepSeek Coder, and Gemma models

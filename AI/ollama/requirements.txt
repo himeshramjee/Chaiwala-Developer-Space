@@ -1,2 +1,0 @@
-# No external dependencies required for base functionality
-# This file ensures virtual environment consistency
