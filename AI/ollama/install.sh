@@ -16,10 +16,12 @@ if [[ -n "${MODELS}" ]]; then
 else
   # Default models
   MODELS_ARRAY=(
-    "codellama:7b"
-    "codellama:13b"
-    "deepseek-coder:v2"
-    "gemma2:12b"
+    "qwen2.5-coder:14b"
+    "codellama:7b",
+    "codellama:13b",
+    "deepcoder:14b",
+    "gemma3:12b",
+    "llama3.3:70b"
   )
 fi
 
@@ -335,6 +337,10 @@ install_models() {
   for model in "${MODELS_ARRAY[@]}"; do
     print_info "Pulling model: $model"
     ollama pull "$model"
+    pull_result=$?
+    if [ $pull_result -ne 0 ]; then
+      print_error "Failed to pull mode: ${model}. Error code: $pull_result"
+    fi
   done
 
   print_success "All models installed successfully!"
