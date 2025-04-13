@@ -6,9 +6,11 @@ A bash utility for installing and configuring Ollama with coding-optimized LLM m
 
 - Automated installation of Ollama as a local service using the official Ollama installer script
 - Pulls and configures coding-optimized LLM models:
-  - CodeLlama 7B and 13B
-  - DeepSeek Coder v2
+  - Qwen2.5 Coder 14B
+  - CodeLlama 7B
+  - DeepSeek Coder v2 16B
   - Gemma 3 12B
+  - Llama 3.3 70B
 - Installs OpenWebUI for a graphical interface to manage models (using Podman)
 - Provides a comprehensive usage guide
 
@@ -70,6 +72,15 @@ SHELL_CONFIG_FILE="$HOME/.custom_rc" bash install.sh
 - **macOS**: The script will use your existing Podman machine if one is already running. Podman on macOS can only run one machine at a time.
 - **Linux**: The script works with both apt and dnf-based distributions.
 
+### Container Architecture
+
+Ollama Vibe uses a simplified containerization approach:
+
+- **Automatic Resource Allocation**: Podman machine is configured with optimized CPU and memory settings based on your system
+- **Modern Container Networking**: Uses Podman's built-in DNS resolution for container-to-host communication
+- **Single Port Mapping**: Maps only the essential port 8080 from the container to the host
+- **Simple Deployment**: Works with existing Podman installations and machines
+
 ## Usage
 
 After installation:
@@ -84,7 +95,7 @@ After installation:
    ```
 
 2. **Access via OpenWebUI**:
-   - Open your browser and navigate to `http://localhost:3108`
+   - Open your browser and navigate to `http://localhost:8080`
    - Create an account or continue as guest
    - Connect to your local Ollama instance (should be automatic)
    - Start chats with any of the installed models
@@ -130,10 +141,10 @@ podman inspect ollama-webui | grep IPAddress
 If you encounter a "proxy already running" error:
 ```bash
 # Stop the installation and try again with a different port
-OPENWEBUI_PORT=3100 bash install.sh
+OPENWEBUI_PORT=8081 bash install.sh
 
 # Or manually fix by cleaning up existing ports
-lsof -i :3000  # Find processes using port 3000
+lsof -i :8080  # Find processes using port 8080
 kill -9 [PID]  # Kill the process
 
 # Check for existing Podman containers
@@ -141,7 +152,7 @@ podman ps -a
 podman rm -f openwebui  # Remove existing container if needed
 
 # Restart with different port to avoid conflicts
-OPENWEBUI_PORT=3108 bash install.sh
+OPENWEBUI_PORT=8081 bash install.sh
 ```
 
 #### "Unable to start podman-machine" Error
@@ -182,6 +193,23 @@ ping ollama.com
 ollama pull codellama:7b
 ```
 
+## Uninstallation
+
+To remove Ollama Vibe and its components:
+
+```bash
+bash uninstall.sh
+```
+
+The uninstaller provides several options:
+- Keep or remove the Ollama binary
+- Keep or remove downloaded models
+- Multiple Podman management options:
+  - Keep everything
+  - Stop machines but keep Podman
+  - Remove machines but keep Podman
+  - Completely remove Podman
+
 For additional support, please open an issue on GitHub.
 
 ## Acknowledgements
@@ -189,4 +217,9 @@ For additional support, please open an issue on GitHub.
 - [Ollama](https://ollama.com/) for making local LLMs accessible
 - [OpenWebUI](https://github.com/open-webui/open-webui) for the web interface
 - [Podman](https://podman.io/) for the daemonless container engine
-- The teams behind CodeLlama, DeepSeek Coder, and Gemma models
+- The teams behind these amazing models:
+  - [Qwen2.5 Coder](https://ollama.com/library/qwen2.5-coder)
+  - [CodeLlama](https://ollama.com/library/codellama)
+  - [DeepSeek Coder](https://ollama.com/library/deepseek-coder)
+  - [Gemma](https://ollama.com/library/gemma)
+  - [Llama 3](https://ollama.com/library/llama3)
