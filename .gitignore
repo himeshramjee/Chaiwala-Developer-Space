@@ -1,3 +1,6 @@
+# Ollama Vibe
+.ollama_vibe_version
+
 # Python
 __pycache__/
 *.py[cod]

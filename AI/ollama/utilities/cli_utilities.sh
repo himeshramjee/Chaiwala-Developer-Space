@@ -48,15 +48,44 @@ is_ollama_installed() {
   command -v ollama &>/dev/null
 }
 
-is_podman_installed() {
-  command -v podman &>/dev/null
-}
-
 get_shell_config_file() {
-  if [[ -n "$SHELL" && "$SHELL" == *"zsh"* ]]; then
-    echo "$HOME/.zshrc"
+  # First check for custom SHELL_CONFIG_FILE env var
+  if [[ -n "$SHELL_CONFIG_FILE" ]]; then
+    echo "$SHELL_CONFIG_FILE"
+    return 0
+  fi
+
+  # Then check based on current shell
+  if [[ -n "$SHELL" ]]; then
+    if [[ "$SHELL" == *"zsh"* ]]; then
+      echo "$HOME/.zshrc"
+    elif [[ "$SHELL" == *"fish"* ]]; then
+      echo "$HOME/.config/fish/config.fish"
+    elif [[ "$SHELL" == *"bash"* ]]; then
+      # Bash configuration differs by OS
+      if is_macos; then
+        if [[ -f "$HOME/.bash_profile" ]]; then
+          echo "$HOME/.bash_profile"
+        else
+          echo "$HOME/.bashrc"
+        fi
+      else
+        echo "$HOME/.bashrc"
+      fi
+    else
+      # Default to bashrc for unknown shells
+      echo "$HOME/.bashrc"
+    fi
   else
-    echo "$HOME/.bashrc"
+    # SHELL is not set, try to determine from process
+    if command -v fish &>/dev/null && pgrep -x "fish" >/dev/null; then
+      echo "$HOME/.config/fish/config.fish"
+    elif command -v zsh &>/dev/null && pgrep -x "zsh" >/dev/null; then
+      echo "$HOME/.zshrc"
+    else
+      # Default to bashrc
+      echo "$HOME/.bashrc"
+    fi
   fi
 }
 
@@ -66,6 +95,11 @@ get_ollama_origins() {
 
 get_ollama_host() {
   if is_macos; then
+    # Import the podman utilities if not already loaded
+    if [[ "${_PODMAN_UTILS_LOADED:-}" != "true" ]]; then
+      source "$SCRIPT_DIR/utilities/install_podman.sh"
+    fi
+    
     # Use the gateway IP if available, otherwise fallback to host.containers.internal
     local gateway
     gateway=$(get_gateway_ip)
@@ -81,105 +115,40 @@ get_ollama_host() {
 
 get_host_ip() {
   if is_macos; then
-    ifconfig en0 | grep 'inet ' | awk '{print $2}'
-  else
-    hostname -I | awk '{print $1}'
-  fi
-}
-
-# Podman machine utility functions
-is_podman_machine_exists() {
-  local machine_name="$1"
-  podman machine list 2>/dev/null | grep -q "$machine_name"
-}
-
-is_podman_machine_running() {
-  local machine_name="$1"
-  podman machine list 2>/dev/null | grep "$machine_name" | grep -q "currently running"
-}
-
-get_running_machine() {
-  # Returns the name of the currently running machine, or empty string if none
-  local running_info
-  running_info=$(podman machine list 2>/dev/null | grep "currently running" || echo "")
-  
-  if [[ -n "$running_info" ]]; then
-    echo "$running_info" | awk '{print $1}'
-  else
-    echo ""
-  fi
-}
-
-setup_podman_machine() {
-  local machine_name="$1"
-  
-  # First check if any machine is running - Podman on macOS only supports one active VM
-  local running_machine
-  running_machine=$(get_running_machine)
-  
-  if [[ -n "$running_machine" ]]; then
-    # A machine is running - print info and use it
-    print_info "Podman machine '$running_machine' is already running"
+    # Try en0 first (most common for macOS)
+    local ip
+    ip=$(ifconfig en0 2>/dev/null | grep 'inet ' | awk '{print $2}')
     
-    if [[ "$running_machine" != "$machine_name" ]]; then
-      print_info "Using existing running machine instead of requested '$machine_name'"
+    # If en0 doesn't work, try other common interfaces
+    if [[ -z "$ip" ]]; then
+      # Try en1 (often used for WiFi on some Macs)
+      ip=$(ifconfig en1 2>/dev/null | grep 'inet ' | awk '{print $2}')
     fi
     
-    # Return success - we have a running machine we can use
-    return 0
-  fi
-  
-  # No machine is running, so continue with normal flow
-  if ! is_podman_machine_exists "$machine_name"; then
-    print_info "Creating Podman machine: $machine_name"
-    podman machine init "$machine_name" || return 1
-  else
-    print_info "Podman machine '$machine_name' already exists"
-  fi
-  
-  # Check if it's running before trying to start it
-  if is_podman_machine_running "$machine_name"; then
-    print_info "Podman machine '$machine_name' is already running"
-  else
-    print_info "Starting Podman machine: $machine_name"
+    # If still no IP, try all interfaces and take first one
+    if [[ -z "$ip" ]]; then
+      ip=$(ifconfig -a | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}')
+    fi
     
-    # Try to start the machine, capture output for error handling
-    local start_output
-    start_output=$(podman machine start "$machine_name" 2>&1) || {
-      # Special case: handle "already running" as success
-      if [[ "$start_output" == *"already running"* ]]; then
-        print_info "Machine is already running (according to error message)"
+    echo "$ip"
+  else
+    # For Linux, try hostname -I first
+    if command -v hostname &>/dev/null; then
+      local ip
+      ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+      
+      if [[ -n "$ip" ]]; then
+        echo "$ip"
         return 0
-      else
-        print_error "Failed to start Podman machine: $start_output"
-        return 1
       fi
-    }
-  fi
-  
-  # Double check it's really running
-  if ! is_podman_machine_running "$machine_name"; then
-    print_error "Machine should be running but isn't according to 'podman machine list'"
-    return 1
-  fi
-  
-  return 0
-}
-
-get_gateway_ip() {
-  if is_macos; then
-    # First check which machine is running
-    local running_machine
-    running_machine=$(get_running_machine)
-    
-    if [[ -n "$running_machine" ]]; then
-      # Use the running machine
-      podman machine inspect "$running_machine" | grep -o '"Gateway": "[^"]*"' | head -1 | cut -d '"' -f 4
-    else
-      # Fallback to default
-      podman machine inspect | grep -o '"Gateway": "[^"]*"' | head -1 | cut -d '"' -f 4
     fi
-  else
-    ip route | grep default | awk '{print $3}'
+    
+    # Fallback to ip addr (more universal across Linux distros)
+    if command -v ip &>/dev/null; then
+      ip addr show | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d/ -f1
+    else
+      # Last resort, try ifconfig
+      ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}'
+    fi
   fi
 }

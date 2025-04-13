@@ -17,12 +17,12 @@ A bash utility for installing and configuring Ollama with coding-optimized LLM m
 Ollama Vibe provides a one-command installation experience that:
 
 1. Installs Ollama on your system using the official installer
-2. Configures necessary environment variables for external access
+2. Configures Ollama to accept connections on all interfaces
 3. Installs Podman (if not already installed) to run container workloads
-4. Uses existing Podman machine or creates one if needed
+4. Sets up an optimized Podman machine with appropriate resource allocation
 5. Deploys OpenWebUI in a Podman container for a graphical interface
 6. Downloads and prepares optimized coding models
-7. Sets up proper networking between components
+7. Sets up proper networking between components for container-to-host communication
 
 All of this is handled automatically with appropriate error checking and user feedback throughout the process. The installer is designed to work with existing Podman setups and will use your currently running Podman machine if one exists.
 
@@ -55,11 +55,14 @@ The installation script will guide you through the process and provide feedback 
 You can customize the installation with environment variables:
 
 ```bash
-# Use a specific port for OpenWebUI (if the default 3000 is in use)
-OPENWEBUI_PORT=3100 bash install.sh
-
 # Install specific models only (space-separated list)
 MODELS="codellama:7b gemma2:12b" bash install.sh
+
+# Force reinstall of OpenWebUI without prompting
+FORCE_REINSTALL=true bash install.sh
+
+# Set a specific shell config file
+SHELL_CONFIG_FILE="$HOME/.custom_rc" bash install.sh
 ```
 
 ### Compatibility Notes
@@ -81,7 +84,7 @@ After installation:
    ```
 
 2. **Access via OpenWebUI**:
-   - Open your browser and navigate to `http://localhost:3000`
+   - Open your browser and navigate to `http://localhost:3108`
    - Create an account or continue as guest
    - Connect to your local Ollama instance (should be automatic)
    - Start chats with any of the installed models
@@ -99,8 +102,14 @@ If Ollama fails to start:
 # Check Ollama service status
 pgrep -x ollama
 
-# Start Ollama manually
-ollama serve
+# Start Ollama manually (listening on all interfaces)
+ollama serve --host 0.0.0.0
+
+# Or use the wrapper script created during installation
+./ollama-serve.sh
+
+# To check Ollama API status
+curl http://localhost:11434/api/version
 ```
 
 ### OpenWebUI Connection Issues
@@ -130,6 +139,9 @@ kill -9 [PID]  # Kill the process
 # Check for existing Podman containers
 podman ps -a
 podman rm -f openwebui  # Remove existing container if needed
+
+# Restart with different port to avoid conflicts
+OPENWEBUI_PORT=3108 bash install.sh
 ```
 
 #### "Unable to start podman-machine" Error
