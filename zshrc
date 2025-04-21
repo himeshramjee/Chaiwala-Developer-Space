@@ -36,12 +36,21 @@ function resetTerminalConfig() {
 }
 
 function updateZshConfig() {
-    print "Symlink or deploy a copy? [l(ink)|c(opy)] "; read inputLCInstall
+    print "Symlink or deploy a copy? [l(ink)|c(opy)|s(source only)] "; read inputLCInstall
     if [[ $inputLCInstall =~ [cC] ]]; then
         print "Executing cp $BACKUPS_FOLDER/$ZSHRC_FILE_NAME.sh ~/.zshrc..."
         cp $BACKUPS_FOLDER/$ZSHRC_FILE_NAME ~/.zshrc
-    else
+    elif [[ $inputLCInstall =~ [sS] ]]; then
+        print "Sourcing the backup zshrc file..."
+        print "Executing source $BACKUPS_FOLDER/$ZSHRC_FILE_NAME..."
+        source $BACKUPS_FOLDER/$ZSHRC_FILE_NAME
+    elif [[ $inputLCInstall =~ [lL] ]]; then
+        print "Symlinking the backup zshrc file..."
+        print "Executing ln -s $BACKUPS_FOLDER/$ZSHRC_FILE_NAME ~/.zshrc..."
         ln -sf $BACKUPS_FOLDER/$ZSHRC_FILE_NAME ~/.zshrc
+    else
+        print "Invalid option. Exiting."
+        return 1
     fi
     
     print "Complete. Sourcing..."
@@ -103,7 +112,7 @@ function setJavaHome() {
         print "JAVA_HOME is currently set to: $JAVA_HOME."
 
         if [[ -z "$1" ]]; then
-            print "Usage: setJavaHome [17|23]"
+            print "Usage: setJavaHome [21|24]"
             print "NB! Version options are dependent on what's installed on local system!"
             print "If the final version check isn't as you expect then don't use this script. Try manually setting JAVA_HOME to whichever version you need."
 
@@ -120,8 +129,9 @@ function setJavaHome() {
         print "Done."
     else
         print "\nJava runtime is not installed on this machine. Check out https://formulae.brew.sh/cask/oracle-jdk"
-        print "brew install --cask oracle-jdk"
-        print "brew install --cask oracle-jdk@17"
+        print "brew install --cask oracle-jdk[@version]"
+        print "e.g. brew install --cask oracle-jdk@21"
+        print "brew install --cask oracle-jdk@24"
     fi
 }
 
