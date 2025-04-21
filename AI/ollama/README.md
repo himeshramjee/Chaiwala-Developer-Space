@@ -10,9 +10,10 @@ A bash utility for installing and configuring Ollama with coding-optimized LLM m
   - CodeLlama 7B
   - DeepSeek Coder v2 16B
   - Gemma 3 12B
-  - Llama 3.3 70B
+  - Llama 3.3 70B (requires 32GB+ RAM and significant disk space)
 - Installs OpenWebUI for a graphical interface to manage models (using Podman)
 - Provides a comprehensive usage guide
+- Includes diagnostic tools for troubleshooting
 
 ## How it Works
 
@@ -28,18 +29,44 @@ Ollama Vibe provides a one-command installation experience that:
 
 All of this is handled automatically with appropriate error checking and user feedback throughout the process. The installer is designed to work with existing Podman setups and will use your currently running Podman machine if one exists.
 
+## Project Structure
+
+```
+ollama/
+├── install.sh                # Main installation script
+├── uninstall.sh              # Uninstallation script
+└── utilities/
+    ├── cli_utilities.sh      # Terminal formatting and OS detection functions
+    ├── constants.sh          # Configuration parameters and model definitions
+    ├── diagnose_openwebui.sh # Diagnostic tool for connection issues
+    ├── install_ollama.sh     # Ollama installation functionality
+    ├── install_openwebui.sh  # OpenWebUI container setup
+    └── install_podman.sh     # Podman installation and machine management
+```
+
 ## Requirements
 
 - **Operating System**: macOS or Linux
-- **Hardware**: 
-  - Minimum 8GB RAM (16GB+ recommended)
-  - 20GB free disk space for models
+- **Hardware**:
+  - Minimum 8GB RAM for basic models
+  - 16GB RAM recommended for most models
+  - 32GB+ RAM for larger models (especially Llama 3.3 70B)
+  - 20GB free disk space for base models
+  - 50GB+ free disk space for all models including Llama 3.3 70B
   - x86_64 or ARM64 architecture
-- **macOS Dependencies**: 
+- **macOS Dependencies**:
   - Homebrew (for Podman installation)
+  - macOS 11 (Big Sur) or newer
 - **Linux Dependencies**:
   - APT or DNF package manager (for Podman installation)
   - sudo privileges
+  - Kernel 4.18 or newer recommended
+
+## Compatible Versions
+
+- **Ollama**: v0.1.28 or newer
+- **Podman**: v4.7.0 or newer
+- **OpenWebUI**: v0.2.13 or newer
 
 ## Installation
 
@@ -58,13 +85,19 @@ You can customize the installation with environment variables:
 
 ```bash
 # Install specific models only (space-separated list)
-MODELS="codellama:7b gemma2:12b" bash install.sh
+MODELS="codellama:7b gemma3:12b" bash install.sh
 
 # Force reinstall of OpenWebUI without prompting
 FORCE_REINSTALL=true bash install.sh
 
 # Set a specific shell config file
 SHELL_CONFIG_FILE="$HOME/.custom_rc" bash install.sh
+
+# Use a custom port for OpenWebUI (default: 8080)
+OPENWEBUI_PORT=8081 bash install.sh
+
+# Manually specify the Podman gateway IP for macOS
+OLLAMA_GATEWAY_IP=192.168.x.x bash install.sh
 ```
 
 ### Compatibility Notes
@@ -72,14 +105,15 @@ SHELL_CONFIG_FILE="$HOME/.custom_rc" bash install.sh
 - **macOS**: The script will use your existing Podman machine if one is already running. Podman on macOS can only run one machine at a time.
 - **Linux**: The script works with both apt and dnf-based distributions.
 
-### Container Architecture
+### Container Networking
 
-Ollama Vibe uses a simplified containerization approach:
+Ollama Vibe uses a container networking approach designed for reliability:
 
 - **Automatic Resource Allocation**: Podman machine is configured with optimized CPU and memory settings based on your system
-- **Modern Container Networking**: Uses Podman's built-in DNS resolution for container-to-host communication
+- **Container-to-Host Communication**: Uses Podman's `host.containers.internal` DNS resolution to allow the OpenWebUI container to connect to the Ollama service running on your host
 - **Single Port Mapping**: Maps only the essential port 8080 from the container to the host
 - **Simple Deployment**: Works with existing Podman installations and machines
+- **Gateway IP Detection**: Automatically detects the appropriate gateway IP for container-to-host communication on macOS
 
 ## Usage
 
@@ -92,6 +126,12 @@ After installation:
    
    # List available models
    ollama list
+   
+   # Run with specific parameters
+   ollama run gemma3:12b --temperature 0.7
+   
+   # Get model info
+   ollama info deepseek-coder-v2:16b
    ```
 
 2. **Access via OpenWebUI**:
@@ -99,10 +139,27 @@ After installation:
    - Create an account or continue as guest
    - Connect to your local Ollama instance (should be automatic)
    - Start chats with any of the installed models
+   - Create custom presets for different tasks
 
 3. **For Development Workflows**:
    - Use the models for coding assistance, debugging, and documentation
    - Connect to Ollama API at `http://localhost:11434` for application integrations
+   - Use the APIs for custom integrations with development tools
+
+## Diagnostic Tool
+
+If you encounter issues with the installation or connection between components, use the included diagnostic tool:
+
+```bash
+bash utilities/diagnose_openwebui.sh
+```
+
+This tool will:
+- Check Podman and container status
+- Verify Ollama API availability
+- Test network connectivity between components
+- Check container environment variables
+- Provide detailed recommendations for fixing issues
 
 ## Troubleshooting
 
@@ -114,10 +171,7 @@ If Ollama fails to start:
 pgrep -x ollama
 
 # Start Ollama manually (listening on all interfaces)
-ollama serve --host 0.0.0.0
-
-# Or use the wrapper script created during installation
-./ollama-serve.sh
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
 
 # To check Ollama API status
 curl http://localhost:11434/api/version
@@ -131,7 +185,10 @@ If OpenWebUI can't connect to Ollama:
 ps aux | grep ollama
 
 # Verify networking between Podman and host
-podman inspect ollama-webui | grep IPAddress
+podman inspect openwebui | grep IPAddress
+
+# Check for common log errors
+podman logs openwebui | grep -i error
 ```
 
 ### Common Installation Issues
@@ -182,6 +239,15 @@ podman machine inspect | grep Gateway
 OLLAMA_GATEWAY_IP=192.168.x.x bash install.sh
 ```
 
+#### Common Log Error Messages
+
+Here are some common error messages you might see in the logs and what they mean:
+
+- `connection reset by peer`: OpenWebUI cannot connect to Ollama API
+- `no such host`: DNS resolution issue between container and host
+- `connection refused`: Ollama is not running or not listening on the correct interface
+- `error pulling model`: Network connectivity issue or insufficient disk space
+
 ### Model Download Issues
 
 If model downloads fail:
@@ -189,8 +255,14 @@ If model downloads fail:
 # Check network connection
 ping ollama.com
 
-# Try manual download
-ollama pull codellama:7b
+# Check disk space availability
+df -h ~/.ollama
+
+# Try manual download with more verbose output
+ollama pull codellama:7b -v
+
+# Check model status
+ollama list
 ```
 
 ## Uninstallation
@@ -222,4 +294,4 @@ For additional support, please open an issue on GitHub.
   - [CodeLlama](https://ollama.com/library/codellama)
   - [DeepSeek Coder](https://ollama.com/library/deepseek-coder)
   - [Gemma](https://ollama.com/library/gemma)
-  - [Llama 3](https://ollama.com/library/llama3)
+  - [Llama 3.3](https://ollama.com/library/llama3)

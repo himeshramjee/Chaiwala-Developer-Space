@@ -126,15 +126,11 @@ install_openwebui() {
     # Check if the web server is responding using curl
     response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${OPENWEBUI_PORT}/" 2>/dev/null || echo "000")
     if [[ "$response_code" == "200" || "$response_code" == "302" || "$response_code" == "301" ]]; then
-      print_success "OpenWebUI is responding on port ${OPENWWEBUI_PORT} (HTTP ${response_code})"
+      print_success "OpenWebUI is responding on port ${OPENWEBUI_PORT} (HTTP ${response_code})"
       web_responsive=true
       break
     else
       print_info "Waiting for OpenWebUI to respond... (attempt $i/${wait_count}, got HTTP ${response_code})"
-    fi
-    else
-      # If neither curl nor wget are available, just wait
-      print_info "Waiting for OpenWebUI to initialize... (attempt $i/${wait_count})"
     fi
     sleep 1
   done
