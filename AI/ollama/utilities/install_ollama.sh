@@ -5,23 +5,7 @@
 start_ollama_service() {
   print_step "Starting Ollama Service"
   
-  # First check if API is already responding
-  if curl -s --max-time 2 "http://localhost:${OLLAMA_PORT}/api/version" &>/dev/null; then
-    print_success "Ollama API is already running and responding"
-    return 0
-  fi
-  
-  # Check if process is running but API is not responsive
-  if pgrep -x "ollama" > /dev/null; then
-    print_info "Ollama process is running but API is not responding. Stopping it first..."
-    if is_macos; then
-      killall ollama 2>/dev/null || true
-    else
-      sudo systemctl stop ollama 2>/dev/null || killall ollama 2>/dev/null || true
-    fi
-    sleep 2
-  fi
-  
+
   # Start Ollama with environment variable for host binding
   print_info "Starting Ollama with: OLLAMA_HOST=0.0.0.0:${OLLAMA_PORT} ollama serve"
   
@@ -39,30 +23,19 @@ start_ollama_service() {
     return 1
   fi
   
-  # Wait for the API to become responsive
-  print_info "Waiting for Ollama API to respond (up to 15 seconds)..."
-  local api_responding=false
-  for i in {1..15}; do
-    sleep 1
-    if curl -s --max-time 1 "http://localhost:${OLLAMA_PORT}/api/version" &>/dev/null; then
-      print_success "Ollama API is responding after $i seconds"
-      api_responding=true
-      break
-    else
-      echo -n "."
-    fi
-  done
-  echo # Add newline after dots
-  
-  if ! $api_responding; then
-    print_error "Failed to verify Ollama API is responding."
-    print_info "Please try starting Ollama manually with: OLLAMA_HOST=0.0.0.0:${OLLAMA_PORT} ollama serve"
-    # Kill the process that we started since it's not responsive
-    kill $OLLAMA_PID 2>/dev/null || true
-    return 1
-  fi
-  
-  print_success "Ollama service is running and API is responding"
+  print_info "Ollam should be ready to serve. Testing /api/generate endpoint..."
+  ollama list
+
+  HANDSHAKE_MODEL="codellama:7b"
+  HANDSHAKE_PROMPT="Hello CAI ($HANDSHAKE_MODEL)! Are you ready to build cool value?"
+  print_info "> $HANDSHAKE_PROMPT"
+  curl -X POST http://localhost:11434/api/generate \
+    -H "Content-Type: application/json" \
+    -d "{\"model\": \"$HANDSHAKE_MODEL\", \"prompt\": \"$HANDSHAKE_PROMPT\", \"stream\": false}" \
+    | jq '.response'
+
+
+  print_success "Ollama service is running, API is responding and models can be served".
   return 0
 }
 
@@ -79,7 +52,6 @@ install_ollama() {
       print_success "Ollama API is running and responding"
     else
       print_warning "Ollama is installed but API is not responding."
-      start_ollama_service
     fi
     
     return 0
@@ -107,9 +79,6 @@ install_ollama() {
   fi
 
   print_success "Ollama installed successfully!"
-
-  # Start Ollama service
-  start_ollama_service
 }
 
 # Download and install LLM models

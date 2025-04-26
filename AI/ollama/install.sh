@@ -77,6 +77,13 @@ main() {
     print_error "Ollama installation failed"
     exit 1
   }
+
+  # Try to start the service
+  start_ollama_service || {
+    print_error "Failed to start Ollama service. Cannot proceed with model installation."
+    exit 1
+  }
+  print_success "Ollama service started successfully"
   
   install_podman || {
     print_error "Podman installation failed"
