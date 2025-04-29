@@ -2,6 +2,8 @@
 
 A bash utility for installing and configuring Ollama with coding-optimized LLM models for "vibe coding" sessions.
 
+> **Note**: Currently supports macOS and Linux. Windows support is planned - see `todo-non-unix-CLAUDE.md` for implementation details.
+
 ## Features
 
 - Automated installation of Ollama as a local service using the official Ollama installer script
@@ -64,9 +66,9 @@ ollama/
 
 ## Compatible Versions
 
-- **Ollama**: v0.1.28 or newer
+- **Ollama**: v0.1.28 or newer (tested up to latest release)
 - **Podman**: v4.7.0 or newer
-- **OpenWebUI**: v0.2.13 or newer
+- **OpenWebUI**: v0.2.13 or newer (using latest image from ghcr.io/open-webui/open-webui)
 
 ## Installation
 
@@ -132,6 +134,9 @@ After installation:
    
    # Get model info
    ollama info deepseek-coder-v2:16b
+
+   # Start the Ollama service on all interfaces (if not running)
+   OLLAMA_HOST=0.0.0.0:11434 ollama serve
    ```
 
 2. **Access via OpenWebUI**:
@@ -283,6 +288,10 @@ The uninstaller provides several options:
   - Completely remove Podman
 
 For additional support, please open an issue on GitHub.
+
+## Future Development
+
+See `todo-non-unix-CLAUDE.md` for details on planned Windows support implementation.
 
 ## Acknowledgements
 
